@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
+
+/* Contrast phù hợp cho focus state (Accessibility) */
+:focus-visible {
+  outline-color: theme('colors.primary.DEFAULT');
+}
+
+/* Thanh cuộn mảnh, đồng bộ style toàn app (không nặng) */
+.thin-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-slate-300;
+}
+
+/* Markdown trong ChatBubble */
+.markdown-body :where(p) {
+  @apply mb-2 last:mb-0;
+}
+.markdown-body :where(ul, ol) {
+  @apply mb-2 ml-5 list-outside last:mb-0;
+}
+.markdown-body :where(ul) {
+  @apply list-disc;
+}
+.markdown-body :where(ol) {
+  @apply list-decimal;
+}
+.markdown-body :where(a) {
+  @apply text-primary underline underline-offset-2;
+}
+.markdown-body :where(code) {
+  @apply rounded bg-slate-100 px-1 py-0.5 font-mono text-[0.85em];
+}
+.markdown-body :where(pre) {
+  @apply mb-2 overflow-x-auto rounded-lg bg-slate-900 p-3 text-slate-100;
+}
+.markdown-body :where(pre code) {
+  @apply bg-transparent p-0 text-inherit;
+}
+.markdown-body :where(strong) {
+  @apply font-semibold;
+}

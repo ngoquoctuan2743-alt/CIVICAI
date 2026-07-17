@@ -1,0 +1,50 @@
+# ==================================================
+# VAIC 2026 - Docker Compose
+# PHASE 1: chỉ PostgreSQL hoạt động (phục vụ migration/dev).
+# Các service ứng dụng sẽ được bật ở PHASE 8 (Deployment).
+# ==================================================
+
+services:
+  # ---- Database: PostgreSQL 16 + pgvector (phục vụ RAG) ----
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: vaic-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-vaic}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-vaic_dev_password}
+      POSTGRES_DB: ${DB_NAME:-vaic}
+    ports:
+      # Host 5433 -> container 5432 (tránh đụng PostgreSQL cài sẵn nếu có)
+      - "5433:5432"
+    volumes:
+      - vaic_postgres_data:/var/lib/postgresql/data
+      # Script khởi tạo extension chạy MỘT LẦN khi volume còn trống
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-vaic} -d ${DB_NAME:-vaic}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ---- PHASE 8 (placeholder - chưa bật) ----
+  # backend:
+  #   build: ./backend
+  #   ports: ["3100:3100"]
+  #   depends_on: { postgres: { condition: service_healthy } }
+  #
+  # ai-service:
+  #   build: ./ai-service
+  #   ports: ["8000:8000"]
+  #
+  # frontend:
+  #   build: ./frontend
+  #   ports: ["3001:3000"]
+  #
+  # nginx:
+  #   image: nginx:alpine
+  #   ports: ["80:80"]
+  #   volumes: ["./deployment/nginx/nginx.conf:/etc/nginx/nginx.conf:ro"]
+
+volumes:
+  vaic_postgres_data:
