@@ -47,3 +47,6 @@ docker-compose.override.yml
 .nyc_output/
 test-results/
 playwright-report/
+
+# ==== Runtime storage (upload local disk demo) ====
+backend/uploads/
