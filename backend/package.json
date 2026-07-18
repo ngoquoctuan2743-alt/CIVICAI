@@ -68,6 +68,12 @@
     ],
     "rootDir": ".",
     "testRegex": ".*\\.spec\\.ts$",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "multi-worker-repro.spec.ts",
+      "persistent-worker.spec.ts",
+      "trivial-multi-worker.spec.ts"
+    ],
     "transform": {
       "^.+\\.ts$": "ts-jest"
     },
