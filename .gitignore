@@ -23,6 +23,8 @@ build/
 out/
 .next/
 .nuxt/
+.open-next/
+.wrangler/
 coverage/
 *.tsbuildinfo
 
