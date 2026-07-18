@@ -108,6 +108,50 @@ export enum KbSourceType {
   AGENCY = 'AGENCY',
 }
 
+/** Phân loại tài liệu trong kho tri thức RAG (Document Ingestion Pipeline) */
+export enum KnowledgeDocumentCategory {
+  LEGAL_DOCUMENT = 'LEGAL_DOCUMENT',
+  PROCEDURE = 'PROCEDURE',
+  FAQ = 'FAQ',
+  CIRCULAR = 'CIRCULAR',
+  DECREE = 'DECREE',
+  FORM = 'FORM',
+  AGENCY_INFO = 'AGENCY_INFO',
+  OTHER = 'OTHER',
+}
+
+/**
+ * Trạng thái xử lý của MỘT phiên bản tài liệu (không phải trạng thái của
+ * document logic — 1 document có thể có nhiều version, mỗi version tự có
+ * vòng đời riêng). "DELETED" không có trong enum này — document bị xóa dùng
+ * soft-delete có sẵn từ AuditableEntity (deletedAt), không cần trạng thái riêng.
+ */
+export enum KnowledgeDocumentVersionStatus {
+  NEW = 'NEW',
+  UPLOADED = 'UPLOADED',
+  PROCESSING = 'PROCESSING',
+  READY = 'READY',
+  FAILED = 'FAILED',
+  REINDEX_REQUIRED = 'REINDEX_REQUIRED',
+}
+
+/** Trạng thái 1 job xử lý parsing & chunking (Prompt 03) */
+export enum ChunkProcessingStatus {
+  QUEUED = 'QUEUED',
+  RUNNING = 'RUNNING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+  RETRYING = 'RETRYING',
+  CANCELLED = 'CANCELLED',
+}
+
+/** Mức độ log của 1 dòng ParsingLog */
+export enum ParsingLogLevel {
+  INFO = 'INFO',
+  WARN = 'WARN',
+  ERROR = 'ERROR',
+}
+
 /** Nguồn dữ liệu huấn luyện/cải thiện AI */
 export enum TrainingDataSource {
   FEEDBACK = 'FEEDBACK',

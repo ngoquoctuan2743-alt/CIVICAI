@@ -21,10 +21,12 @@ import { LoggerModule } from './logger/logger.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AiClientModule } from './modules/ai-client/ai-client.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { ChunkingModule } from './modules/chunking/chunking.module';
 import { CitizenModule } from './modules/citizen/citizen.module';
 import { ConversationModule } from './modules/conversation/conversation.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { GovernmentModule } from './modules/government/government.module';
+import { KnowledgeDocumentsModule } from './modules/knowledge-documents/knowledge-documents.module';
 import { LegalModule } from './modules/legal/legal.module';
 import { ProceduresModule } from './modules/procedures/procedures.module';
 import { SystemModule } from './modules/system/system.module';
@@ -102,6 +104,10 @@ import { VoiceModule } from './modules/voice/voice.module';
     ConversationModule,
     DocumentsModule,
     VoiceModule,
+    // ---- RAG: Document Ingestion Pipeline (Prompt 02) ----
+    KnowledgeDocumentsModule,
+    // ---- RAG: Document Parsing & Intelligent Chunking Engine (Prompt 03) ----
+    ChunkingModule,
     // ---- Dashboard Admin ----
     AdminModule,
   ],

@@ -59,10 +59,12 @@ export interface AiServiceConfig {
   circuitBreakerResetMs: number;
 }
 
-/** Cấu hình lưu trữ file local (PHASE 4 — OCR upload) */
+/** Cấu hình lưu trữ file local (PHASE 4 — OCR upload; mở rộng Document Ingestion) */
 export interface StorageConfig {
   uploadDir: string;
   maxFileSizeBytes: number;
+  /** Giới hạn riêng cho tài liệu kho tri thức (PDF/DOCX...) — thường lớn hơn ảnh */
+  maxDocumentFileSizeBytes: number;
 }
 
 /** Cấu trúc cấu hình gốc của toàn backend */
@@ -129,5 +131,8 @@ export default (): RootConfig => ({
     maxFileSizeBytes: process.env.MAX_FILE_SIZE_BYTES
       ? parseInt(process.env.MAX_FILE_SIZE_BYTES, 10)
       : 8 * 1024 * 1024,
+    maxDocumentFileSizeBytes: process.env.MAX_DOCUMENT_FILE_SIZE_BYTES
+      ? parseInt(process.env.MAX_DOCUMENT_FILE_SIZE_BYTES, 10)
+      : 25 * 1024 * 1024,
   },
 });
