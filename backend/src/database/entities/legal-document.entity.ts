@@ -48,4 +48,20 @@ export class LegalDocumentEntity extends BaseDbEntity {
   /** Tóm tắt nội dung — hiển thị trong kết quả tra cứu */
   @Column({ type: 'text', nullable: true })
   summary: string | null;
+
+  /**
+   * Toàn văn nội dung văn bản — nguồn để cắt đoạn (chunk) nạp vào kb_chunks.
+   * Embedding KHÔNG lưu trực tiếp ở đây — kb_chunks là nguồn embedding duy nhất
+   * (mỗi văn bản dài cắt thành nhiều đoạn nhỏ, đúng chuẩn RAG đã chốt Phase 3).
+   */
+  @Column({ type: 'text', nullable: true })
+  content: string | null;
+
+  /** Số lần sửa đổi/phiên bản văn bản, vd: "Sửa đổi lần 2 (2023)" */
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  version: string | null;
+
+  /** Thông tin phụ tự do, vd: {tags: [...], relatedDocCodes: [...]} */
+  @Column({ type: 'jsonb', nullable: true })
+  metadata: Record<string, unknown> | null;
 }

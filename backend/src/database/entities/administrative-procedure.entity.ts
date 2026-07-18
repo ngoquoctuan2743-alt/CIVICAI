@@ -22,6 +22,15 @@ export class AdministrativeProcedureEntity extends BaseDbEntity {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
+  /** Lĩnh vực thủ tục, vd: "Hộ tịch", "Cư trú", "Xuất nhập cảnh" — phục vụ lọc/phân loại */
+  @Index('idx_procedures_category')
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  category: string | null;
+
+  /** Kết quả thực hiện thủ tục, vd: "Thẻ căn cước công dân", "Giấy khai sinh" */
+  @Column({ name: 'expected_result', type: 'varchar', length: 500, nullable: true })
+  expectedResult: string | null;
+
   /** Cơ quan thực hiện */
   @Index('idx_procedures_agency')
   @Column({ name: 'agency_id', type: 'uuid', nullable: true })

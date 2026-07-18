@@ -7,6 +7,7 @@ import * as pg from 'pg';
 import configuration, { AuthConfig, DatabaseConfig } from './config/configuration';
 import { ALL_ENTITIES } from './database/entities';
 import { validateEnv } from './config/env.validation';
+import { AuditLogModule } from './common/audit/audit-log.module';
 import { MemoryCacheModule } from './common/cache/memory-cache.module';
 import { GlobalExceptionFilter } from './common/exceptions/global-exception.filter';
 import { AuthGuard } from './common/guards/auth.guard';
@@ -17,6 +18,7 @@ import { RequestContextMiddleware } from './common/middleware/request-context.mi
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 import { buildValidationPipe } from './common/validation/validation.factory';
 import { LoggerModule } from './logger/logger.module';
+import { AdminModule } from './modules/admin/admin.module';
 import { AiClientModule } from './modules/ai-client/ai-client.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CitizenModule } from './modules/citizen/citizen.module';
@@ -27,6 +29,7 @@ import { LegalModule } from './modules/legal/legal.module';
 import { ProceduresModule } from './modules/procedures/procedures.module';
 import { SystemModule } from './modules/system/system.module';
 import { UsersModule } from './modules/users/users.module';
+import { VoiceModule } from './modules/voice/voice.module';
 
 /**
  * Root Module — lắp ráp toàn bộ backend (DI Container của NestJS).
@@ -85,6 +88,7 @@ import { UsersModule } from './modules/users/users.module';
     }),
     LoggerModule,
     MemoryCacheModule,
+    AuditLogModule,
     SystemModule,
     // ---- Module nghiệp vụ (PHASE 2) ----
     AuthModule,
@@ -97,6 +101,9 @@ import { UsersModule } from './modules/users/users.module';
     AiClientModule,
     ConversationModule,
     DocumentsModule,
+    VoiceModule,
+    // ---- Dashboard Admin ----
+    AdminModule,
   ],
   providers: [
     // Validation toàn cục cho mọi DTO

@@ -15,6 +15,8 @@ interface AuthContextValue {
   login: (input: LoginInput) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   logout: () => Promise<void>;
+  /** Cập nhật thông tin user hiện tại trong context + localStorage (vd sau khi đổi avatar) */
+  updateUser: (user: SafeUser) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -74,9 +76,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push('/login');
   }, [router]);
 
+  const updateUser = useCallback((nextUser: SafeUser) => {
+    localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+    setUser(nextUser);
+  }, []);
+
   const value = useMemo(
-    () => ({ user, isInitializing, isAuthenticated: !!user, login, register, logout }),
-    [user, isInitializing, login, register, logout],
+    () => ({ user, isInitializing, isAuthenticated: !!user, login, register, logout, updateUser }),
+    [user, isInitializing, login, register, logout, updateUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { hash } from 'bcryptjs';
+import { AuditLogService } from '../../common/audit/audit-log.service';
 import { AppException } from '../../common/exceptions/app.exception';
 import { ErrorCode } from '../../common/constants/error-code.constants';
 import { UserStatus } from '../../database/entities/enums';
@@ -30,12 +31,13 @@ describe('AuthService', () => {
   };
   const jwtService = { signAsync: jest.fn().mockResolvedValue('signed-access-token') };
   const logger = { setContext: jest.fn(), log: jest.fn(), warn: jest.fn(), error: jest.fn() };
+  const auditLog = { record: jest.fn().mockResolvedValue(undefined) };
   const configService = {
-    getOrThrow: jest.fn().mockReturnValue({
-      jwtSecret: 'test-secret',
-      accessExpiresIn: '15m',
-      refreshExpiresDays: 7,
-    }),
+    getOrThrow: jest.fn((key: string) =>
+      key === 'app.env'
+        ? 'test'
+        : { jwtSecret: 'test-secret', accessExpiresIn: '15m', refreshExpiresDays: 7 },
+    ),
   };
 
   const citizenRole: Partial<RoleEntity> = { id: 'role-1', code: 'CITIZEN' };
@@ -50,6 +52,7 @@ describe('AuthService', () => {
         { provide: getRepositoryToken(RefreshTokenEntity), useValue: refreshTokenRepo },
         { provide: JwtService, useValue: jwtService },
         { provide: AppLoggerService, useValue: logger },
+        { provide: AuditLogService, useValue: auditLog },
         { provide: ConfigService, useValue: configService },
       ],
     }).compile();

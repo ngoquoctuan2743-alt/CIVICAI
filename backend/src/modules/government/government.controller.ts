@@ -23,4 +23,11 @@ export class GovernmentController {
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.governmentService.findOne(id);
   }
+
+  @Public()
+  @Get('provinces')
+  @ApiOperation({ summary: 'Danh sách tỉnh/thành (phục vụ dropdown lọc theo địa phương)' })
+  findProvinces() {
+    return this.governmentService.findProvinces();
+  }
 }

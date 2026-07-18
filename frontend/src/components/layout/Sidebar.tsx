@@ -6,12 +6,13 @@ import { LogOut } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { useAuth } from '../../stores/auth-context';
 import { Logo } from './Logo';
-import { NAV_ITEMS } from './nav-items';
+import { ADMIN_NAV_ITEM, NAV_ITEMS } from './nav-items';
 
 /** Sidebar desktop/tablet — ẩn trên mobile (thay bằng MobileNav) */
 export function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const navItems = user?.roles.includes('ADMIN') ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
@@ -20,7 +21,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-3 thin-scrollbar" aria-label="Điều hướng chính">
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+        {navItems.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
             <Link

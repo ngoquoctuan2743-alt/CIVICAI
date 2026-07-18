@@ -1,11 +1,13 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { AuthUser } from '../../common/interfaces/auth-user.interface';
 import { ConversationService } from './conversation.service';
+import { ConversationQueryDto } from './dto/conversation-query.dto';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
+import { RenameConversationDto } from './dto/rename-conversation.dto';
 import { SubmitFeedbackDto } from './dto/submit-feedback.dto';
 
 /** API hội thoại của người dùng đang đăng nhập */
@@ -22,9 +24,25 @@ export class ConversationController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Lịch sử hội thoại của tôi (phân trang)' })
-  findMine(@CurrentUser() user: AuthUser, @Query() query: PaginationQueryDto) {
+  @ApiOperation({ summary: 'Lịch sử hội thoại của tôi (phân trang, tìm theo tiêu đề)' })
+  findMine(@CurrentUser() user: AuthUser, @Query() query: ConversationQueryDto) {
     return this.conversationService.findMine(user.userId, query);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Đổi tên hội thoại' })
+  rename(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RenameConversationDto,
+  ) {
+    return this.conversationService.rename(user.userId, id, dto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Xóa hội thoại' })
+  remove(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.conversationService.remove(user.userId, id);
   }
 
   @Get(':id/messages')

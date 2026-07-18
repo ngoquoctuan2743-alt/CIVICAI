@@ -5,9 +5,11 @@ import { Public } from '../../common/decorators/public.decorator';
 import { RateLimit } from '../../common/decorators/rate-limit.decorator';
 import { AuthUser } from '../../common/interfaces/auth-user.interface';
 import { AuthService } from './auth.service';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 /** API xác thực: đăng ký / đăng nhập / refresh / đăng xuất */
 @ApiTags('auth')
@@ -47,5 +49,23 @@ export class AuthController {
   async logout(@CurrentUser() user: AuthUser, @Body() dto: RefreshTokenDto) {
     await this.authService.logout(user.userId, dto.refreshToken);
     return { message: 'Đã đăng xuất' };
+  }
+
+  @Public()
+  @RateLimit({ points: 5, durationMs: 60_000 })
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Yêu cầu đặt lại mật khẩu (placeholder — chưa gửi email thật)' })
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @Public()
+  @RateLimit({ points: 5, durationMs: 60_000 })
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Đặt lại mật khẩu bằng token từ forgot-password' })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 }

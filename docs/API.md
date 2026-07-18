@@ -12,6 +12,8 @@ Auth: `Authorization: Bearer <accessToken>` (trừ endpoint đánh dấu **Publi
 | POST | `/auth/login` | Public | Đăng nhập, trả access token (15p) + refresh token (7 ngày) |
 | POST | `/auth/refresh` | Public | Cấp lại cặp token (refresh token rotation) |
 | POST | `/auth/logout` | Bearer | Thu hồi refresh token hiện tại |
+| POST | `/auth/forgot-password` | Public | Yêu cầu đặt lại mật khẩu — non-production trả kèm `devToken` (chưa tích hợp email thật) |
+| POST | `/auth/reset-password` | Public | Đặt lại mật khẩu bằng token từ `forgot-password` |
 
 ## Users (`/users`)
 
@@ -19,6 +21,8 @@ Auth: `Authorization: Bearer <accessToken>` (trừ endpoint đánh dấu **Publi
 |---|---|---|---|
 | GET | `/users/profile` | Bearer | Thông tin tài khoản đang đăng nhập |
 | PUT | `/users/profile` | Bearer | Cập nhật hồ sơ (họ tên, số điện thoại) |
+| POST | `/users/avatar` | Bearer | Upload ảnh đại diện (multipart, field `file`) |
+| PATCH | `/users/password` | Bearer | Đổi mật khẩu (biết mật khẩu hiện tại) — thu hồi các phiên khác |
 | DELETE | `/users/account` | Bearer | Xoá tài khoản (soft delete) |
 
 ## Citizens (`/citizens`)
@@ -38,6 +42,10 @@ Auth: `Authorization: Bearer <accessToken>` (trừ endpoint đánh dấu **Publi
 | GET | `/conversations/:id/messages` | Bearer | Danh sách tin nhắn trong hội thoại (phân trang) |
 | POST | `/conversations/:id/messages` | Bearer | Gửi tin nhắn — AI trả lời qua Intent + RAG, lưu cả 2 lượt |
 | POST | `/conversations/:id/messages/:messageId/feedback` | Bearer | Đánh giá câu trả lời AI (`rating`: `1` \| `-1`) |
+| PATCH | `/conversations/:id` | Bearer | Đổi tên hội thoại |
+| DELETE | `/conversations/:id` | Bearer | Xóa hội thoại (soft delete) |
+
+`GET /conversations` hỗ trợ thêm query `search` (tìm theo tiêu đề).
 
 ## Documents (`/documents`) — OCR
 
@@ -46,16 +54,38 @@ Auth: `Authorization: Bearer <accessToken>` (trừ endpoint đánh dấu **Publi
 | POST | `/documents/analyze` | Bearer | Upload ảnh giấy tờ (multipart, field `file`) → OCR + phân tích AI. Chấp nhận `image/jpeg`, `image/png`, `image/webp` (xác minh bằng magic bytes thật, tối đa `MAX_FILE_SIZE_BYTES`) |
 | GET | `/documents/mine` | Bearer | Lịch sử OCR của tôi (tối đa 50 gần nhất) |
 
+## Voice (`/voice`) — placeholder server-side
+
+| Method | Path | Auth | Mô tả |
+|---|---|---|---|
+| POST | `/voice/stt` | Bearer | Placeholder — STT thật chạy ở trình duyệt (Web Speech API), endpoint này echo transcript đã nhận diện, ghi `voice_logs` |
+| POST | `/voice/tts` | Bearer | Placeholder — TTS thật chạy ở trình duyệt, chuẩn bị sẵn cho tích hợp server sau |
+
 ## Tra cứu (Public — không cần đăng nhập)
 
 | Method | Path | Mô tả |
 |---|---|---|
-| GET | `/procedures` | Danh sách thủ tục hành chính (query `search`) |
-| GET | `/procedures/:id` | Chi tiết 1 thủ tục (bao gồm bước thực hiện, hồ sơ cần) |
-| GET | `/legal/documents` | Danh sách văn bản pháp luật (query `search`) |
-| GET | `/legal/documents/:id` | Chi tiết 1 văn bản luật |
-| GET | `/government/agencies` | Danh sách cơ quan nhà nước (query `search`) |
-| GET | `/government/agencies/:id` | Chi tiết 1 cơ quan |
+| GET | `/procedures` | Danh sách thủ tục hành chính (query `search`, `category`, `provinceId`, `level`, `agencyId`) |
+| GET | `/procedures/:id` | Chi tiết 1 thủ tục (bao gồm bước thực hiện, hồ sơ cần, lĩnh vực, kết quả) |
+| GET | `/legal/documents` | Danh sách văn bản pháp luật (query `search`, `docType`, `status`) |
+| GET | `/legal/documents/:id` | Chi tiết 1 văn bản luật (kèm toàn văn `content`, `version`) |
+| GET | `/government/agencies` | Danh sách cơ quan nhà nước (query `search`, `level`, `provinceId`) |
+| GET | `/government/agencies/:id` | Chi tiết 1 cơ quan (kèm giờ làm việc) |
+| GET | `/government/provinces` | Danh sách tỉnh/thành (phục vụ dropdown lọc theo địa phương) |
+
+## Admin (`/admin`) — chỉ role ADMIN
+
+| Method | Path | Mô tả |
+|---|---|---|
+| GET | `/admin/dashboard` | Số liệu tổng quan hệ thống |
+| GET/POST | `/admin/procedures`, `/admin/legal/documents`, `/admin/government/agencies` | Danh sách + tạo mới |
+| GET/PATCH/DELETE | `.../:id` | Chi tiết, cập nhật, ẩn/xóa (procedures/legal → chuyển status; agencies → xóa thật, chặn nếu đang tham chiếu) |
+| GET | `/admin/users` | Danh sách tài khoản (search, lọc status/role) |
+| GET | `/admin/users/:id` | Chi tiết tài khoản |
+| PATCH | `/admin/users/:id/status` | Khóa/mở tài khoản |
+| GET | `/admin/feedback` | Danh sách feedback |
+| GET | `/admin/feedback/stats` | Thống kê feedback |
+| GET | `/admin/audit-logs` | Nhật ký hoạt động hệ thống (lọc `action`, `resourceType`, `actorUserId`) |
 
 ## System
 

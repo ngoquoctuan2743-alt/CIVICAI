@@ -59,9 +59,20 @@ export default function ProcedureDetailPage() {
 
       <div className="mb-1 flex items-start justify-between gap-3">
         <h1 className="text-xl font-semibold text-slate-900">{procedure.name}</h1>
-        <Badge tone="blue" className="mt-1 shrink-0">{procedure.code}</Badge>
+        <div className="mt-1 flex shrink-0 gap-1.5">
+          {procedure.category && <Badge tone="gray">{procedure.category}</Badge>}
+          <Badge tone="blue">{procedure.code}</Badge>
+        </div>
       </div>
-      {procedure.description && <p className="mb-5 text-sm text-slate-600">{procedure.description}</p>}
+      <div className="mb-5">
+        {procedure.description && <p className="text-sm text-slate-600">{procedure.description}</p>}
+        {procedure.expectedResult && (
+          <p className="mt-1 text-sm text-slate-600">
+            <span className="font-medium text-slate-700">Kết quả thực hiện: </span>
+            {procedure.expectedResult}
+          </p>
+        )}
+      </div>
 
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <InfoTile icon={Building2} label="Cơ quan xử lý" value={procedure.agency?.name ?? '—'} />

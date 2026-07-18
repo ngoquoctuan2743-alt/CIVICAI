@@ -5,6 +5,8 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { compare, hash } from 'bcryptjs';
 import { IsNull, MoreThan, Repository } from 'typeorm';
+import { AuditLogService } from '../../common/audit/audit-log.service';
+import { Environment } from '../../common/enums/environment.enum';
 import { Role } from '../../common/enums/role.enum';
 import { AppException } from '../../common/exceptions/app.exception';
 import { AuthConfig } from '../../config/configuration';
@@ -13,11 +15,16 @@ import { RefreshTokenEntity } from '../../database/entities/refresh-token.entity
 import { RoleEntity } from '../../database/entities/role.entity';
 import { UserEntity } from '../../database/entities/user.entity';
 import { AppLoggerService } from '../../logger/logger.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 /** Số vòng băm bcrypt */
 const BCRYPT_ROUNDS = 10;
+/** Thời hạn hiệu lực token đặt lại mật khẩu */
+const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
 
 /** Kết quả phát hành token */
 export interface TokenPair {
@@ -33,6 +40,7 @@ export interface SafeUser {
   email: string;
   fullName: string;
   phone: string | null;
+  avatarUrl: string | null;
   status: UserStatus;
   roles: string[];
   createdAt: Date;
@@ -46,6 +54,7 @@ export interface SafeUser {
 @Injectable()
 export class AuthService {
   private readonly authConfig: AuthConfig;
+  private readonly appEnv: Environment;
 
   constructor(
     @InjectRepository(UserEntity) private readonly userRepo: Repository<UserEntity>,
@@ -54,10 +63,12 @@ export class AuthService {
     private readonly refreshTokenRepo: Repository<RefreshTokenEntity>,
     private readonly jwtService: JwtService,
     private readonly logger: AppLoggerService,
+    private readonly auditLog: AuditLogService,
     configService: ConfigService,
   ) {
     this.logger.setContext(AuthService.name);
     this.authConfig = configService.getOrThrow<AuthConfig>('auth');
+    this.appEnv = configService.getOrThrow<Environment>('app.env');
   }
 
   /** Đăng ký tài khoản mới — gán role CITIZEN mặc định */
@@ -85,6 +96,7 @@ export class AuthService {
     });
     const saved = await this.userRepo.save(user);
     this.logger.log(`Đăng ký tài khoản mới: ${saved.id}`);
+    void this.auditLog.record('REGISTER', { actorUserId: saved.id, resourceType: 'user', resourceId: saved.id });
 
     return { user: this.toSafeUser(saved), tokens: await this.issueTokens(saved) };
   }
@@ -96,12 +108,20 @@ export class AuthService {
 
     // Thông điệp chung cho mọi trường hợp sai — không tiết lộ email có tồn tại hay không
     if (!user?.passwordHash || !(await compare(dto.password, user.passwordHash))) {
+      void this.auditLog.record('LOGIN_FAILED', { metadata: { email } });
       throw AppException.unauthorized('Email hoặc mật khẩu không đúng');
     }
     if (user.status !== UserStatus.ACTIVE) {
+      void this.auditLog.record('LOGIN_FAILED', {
+        actorUserId: user.id,
+        resourceType: 'user',
+        resourceId: user.id,
+        metadata: { reason: 'account_not_active', status: user.status },
+      });
       throw AppException.forbidden('Tài khoản đã bị khóa hoặc vô hiệu hóa');
     }
 
+    void this.auditLog.record('LOGIN', { actorUserId: user.id, resourceType: 'user', resourceId: user.id });
     return { user: this.toSafeUser(user), tokens: await this.issueTokens(user) };
   }
 
@@ -133,11 +153,76 @@ export class AuthService {
       { userId, tokenHash: this.hashToken(refreshToken), revokedAt: IsNull() },
       { revokedAt: new Date() },
     );
+    void this.auditLog.record('LOGOUT', { actorUserId: userId, resourceType: 'user', resourceId: userId });
   }
 
   /** Thu hồi TOÀN BỘ refresh token của user (xóa tài khoản/đổi mật khẩu) */
   async revokeAllTokens(userId: string): Promise<void> {
     await this.refreshTokenRepo.update({ userId, revokedAt: IsNull() }, { revokedAt: new Date() });
+  }
+
+  /** Đổi mật khẩu (đã đăng nhập, biết mật khẩu hiện tại) — thu hồi mọi phiên khác để bảo mật */
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<{ message: string }> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user?.passwordHash || !(await compare(dto.currentPassword, user.passwordHash))) {
+      throw AppException.unauthorized('Mật khẩu hiện tại không đúng');
+    }
+
+    user.passwordHash = await hash(dto.newPassword, BCRYPT_ROUNDS);
+    user.updatedBy = userId;
+    await this.userRepo.save(user);
+    await this.revokeAllTokens(userId);
+    this.logger.log(`User ${userId} da doi mat khau`);
+    return { message: 'Đổi mật khẩu thành công. Vui lòng đăng nhập lại.' };
+  }
+
+  /**
+   * Yêu cầu đặt lại mật khẩu — PLACEHOLDER: chưa tích hợp dịch vụ gửi email.
+   * Luôn trả cùng một thông điệp bất kể email có tồn tại hay không (chống dò email).
+   * Ở môi trường development/test, trả kèm token trong response để có thể test
+   * end-to-end mà không cần email thật; ở production KHÔNG bao giờ lộ token qua API
+   * (chỉ ghi log server — khi tích hợp email thật ở Prompt sau sẽ gửi qua email thay vì log).
+   */
+  async forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string; devToken?: string }> {
+    const email = dto.email.trim().toLowerCase();
+    const user = await this.userRepo.findOne({ where: { email } });
+    const message = 'Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được gửi.';
+
+    if (!user) {
+      return { message };
+    }
+
+    const resetToken = randomBytes(32).toString('hex');
+    user.resetTokenHash = this.hashToken(resetToken);
+    user.resetTokenExpiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+    await this.userRepo.save(user);
+
+    if (this.appEnv === Environment.Production) {
+      // TODO(email): gửi resetToken qua email thay vì log khi có dịch vụ email thật
+      this.logger.log(`Reset password duoc yeu cau cho user ${user.id} (token da tao, cho tich hop email)`);
+      return { message };
+    }
+
+    this.logger.log(`[DEV] Reset token cho ${email}: ${resetToken}`);
+    return { message, devToken: resetToken };
+  }
+
+  /** Đặt lại mật khẩu bằng token nhận từ forgotPassword */
+  async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
+    const tokenHash = this.hashToken(dto.token);
+    const user = await this.userRepo.findOne({ where: { resetTokenHash: tokenHash } });
+
+    if (!user?.resetTokenExpiresAt || user.resetTokenExpiresAt < new Date()) {
+      throw AppException.badRequest('Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn');
+    }
+
+    user.passwordHash = await hash(dto.newPassword, BCRYPT_ROUNDS);
+    user.resetTokenHash = null;
+    user.resetTokenExpiresAt = null;
+    await this.userRepo.save(user);
+    await this.revokeAllTokens(user.id);
+    this.logger.log(`User ${user.id} da dat lai mat khau qua token`);
+    return { message: 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.' };
   }
 
   /** Phát hành cặp access + refresh token */
@@ -176,6 +261,7 @@ export class AuthService {
       email: user.email,
       fullName: user.fullName,
       phone: user.phone,
+      avatarUrl: user.avatarUrl,
       status: user.status,
       roles: (user.roles ?? []).map((r) => r.code),
       createdAt: user.createdAt,

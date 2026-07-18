@@ -6,3 +6,5 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://loca
 export const ACCESS_TOKEN_KEY = 'vaic_access_token';
 export const REFRESH_TOKEN_KEY = 'vaic_refresh_token';
 export const USER_KEY = 'vaic_user';
+/** Câu hỏi người dùng gõ ở trang chủ trước khi đăng nhập — gửi tự động sau khi vào /chat */
+export const PENDING_QUESTION_KEY = 'vaic_pending_question';

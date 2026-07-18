@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ImagePlus, Send } from 'lucide-react';
+import { ImagePlus, Send, UploadCloud } from 'lucide-react';
 import { useSpeechRecognition } from '../../hooks/use-speech-recognition';
+import { cn } from '../../lib/cn';
 import { FilePreview } from '../ocr/FilePreview';
 import { MicButton } from './MicButton';
 
@@ -20,9 +21,50 @@ export function ChatInput({ onSend, onSendImage, disabled }: ChatInputProps) {
   const [text, setText] = useState('');
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const dragCounter = useRef(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { isSupported, isRecording, transcript, error: voiceError, start, stop, reset } = useSpeechRecognition();
+
+  function validateAndSetFile(file: File) {
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      setFileError('Chỉ chấp nhận ảnh JPG, PNG hoặc WebP.');
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      setFileError('Ảnh vượt quá dung lượng tối đa 8MB.');
+      return;
+    }
+    setFileError(null);
+    setPendingFile(file);
+  }
+
+  function handleDragEnter(e: React.DragEvent) {
+    e.preventDefault();
+    if (e.dataTransfer.types.includes('Files')) {
+      dragCounter.current += 1;
+      setIsDraggingFile(true);
+    }
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    dragCounter.current -= 1;
+    if (dragCounter.current <= 0) {
+      dragCounter.current = 0;
+      setIsDraggingFile(false);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    dragCounter.current = 0;
+    setIsDraggingFile(false);
+    if (disabled) return;
+    const file = e.dataTransfer.files?.[0];
+    if (file) validateAndSetFile(file);
+  }
 
   // Đồng bộ transcript giọng nói vào ô nhập trong lúc đang ghi âm
   useEffect(() => {
@@ -60,17 +102,7 @@ export function ChatInput({ onSend, onSendImage, disabled }: ChatInputProps) {
     const file = e.target.files?.[0];
     e.target.value = ''; // cho phép chọn lại cùng file lần sau
     if (!file) return;
-
-    if (!ACCEPTED_TYPES.includes(file.type)) {
-      setFileError('Chỉ chấp nhận ảnh JPG, PNG hoặc WebP.');
-      return;
-    }
-    if (file.size > MAX_FILE_SIZE) {
-      setFileError('Ảnh vượt quá dung lượng tối đa 8MB.');
-      return;
-    }
-    setFileError(null);
-    setPendingFile(file);
+    validateAndSetFile(file);
   }
 
   function confirmSendFile() {
@@ -81,7 +113,20 @@ export function ChatInput({ onSend, onSendImage, disabled }: ChatInputProps) {
   }
 
   return (
-    <div className="border-t border-slate-200 bg-white p-3 sm:p-4">
+    <div
+      className="relative border-t border-slate-200 bg-white p-3 sm:p-4"
+      onDragEnter={handleDragEnter}
+      onDragOver={(e) => e.preventDefault()}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {isDraggingFile && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-primary bg-primary/5 text-primary">
+          <UploadCloud size={28} />
+          <p className="text-sm font-medium">Thả ảnh giấy tờ vào đây để AI đọc</p>
+        </div>
+      )}
+
       {(fileError || voiceError) && (
         <p role="alert" className="mb-2 text-xs text-red-600">
           {fileError ?? voiceError}

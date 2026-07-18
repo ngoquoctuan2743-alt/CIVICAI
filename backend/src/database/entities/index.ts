@@ -1,6 +1,7 @@
 import { AdministrativeProcedureEntity } from './administrative-procedure.entity';
 import { AdministrativeUnitEntity } from './administrative-unit.entity';
 import { AiTrainingDataEntity } from './ai-training-data.entity';
+import { AuditLogEntity } from './audit-log.entity';
 import { CitizenProfileEntity } from './citizen-profile.entity';
 import { ConversationEntity } from './conversation.entity';
 import { DocumentEntity } from './document.entity';
@@ -15,6 +16,7 @@ import { ProcedureStepEntity } from './procedure-step.entity';
 import { RefreshTokenEntity } from './refresh-token.entity';
 import { RoleEntity } from './role.entity';
 import { UserEntity } from './user.entity';
+import { VoiceLogEntity } from './voice-log.entity';
 
 /**
  * Danh sách TOÀN BỘ entity của hệ thống — nguồn chân lý duy nhất
@@ -25,6 +27,7 @@ export const ALL_ENTITIES = [
   AdministrativeProcedureEntity,
   AdministrativeUnitEntity,
   AiTrainingDataEntity,
+  AuditLogEntity,
   CitizenProfileEntity,
   ConversationEntity,
   DocumentEntity,
@@ -39,4 +42,5 @@ export const ALL_ENTITIES = [
   RefreshTokenEntity,
   RoleEntity,
   UserEntity,
+  VoiceLogEntity,
 ];

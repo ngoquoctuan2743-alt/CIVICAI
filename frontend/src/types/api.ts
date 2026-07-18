@@ -30,6 +30,7 @@ export interface SafeUser {
   email: string;
   fullName: string;
   phone: string | null;
+  avatarUrl: string | null;
   status: string;
   roles: string[];
   createdAt: string;
@@ -78,6 +79,7 @@ export interface GovernmentAgency {
   phone: string | null;
   email: string | null;
   website: string | null;
+  workingHours: string | null;
   parent?: GovernmentAgency | null;
   adminUnit?: AdministrativeUnit | null;
 }
@@ -94,6 +96,9 @@ export interface LegalDocument {
   status: 'CON_HIEU_LUC' | 'HET_HIEU_LUC' | 'CHUA_HIEU_LUC';
   sourceUrl: string | null;
   summary: string | null;
+  content: string | null;
+  version: string | null;
+  metadata: Record<string, unknown> | null;
 }
 
 // ---------- Procedures ----------
@@ -118,6 +123,8 @@ export interface AdministrativeProcedure {
   code: string;
   name: string;
   description: string | null;
+  category: string | null;
+  expectedResult: string | null;
   onlineLevel: string | null;
   feeText: string | null;
   processingTimeText: string | null;
@@ -190,6 +197,16 @@ export interface Feedback {
   userId: string;
   rating: 1 | -1;
   comment: string | null;
+}
+
+// ---------- Admin Dashboard ----------
+export interface DashboardSummary {
+  users: { total: number; active: number };
+  conversations: { total: number; active: number };
+  procedures: { total: number; active: number };
+  agencies: { total: number };
+  legalDocuments: { total: number; effective: number };
+  feedback: { total: number; positive: number; negative: number };
 }
 
 // ---------- Documents / OCR ----------

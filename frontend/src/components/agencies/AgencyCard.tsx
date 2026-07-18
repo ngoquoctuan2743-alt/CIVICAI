@@ -1,4 +1,4 @@
-import { ExternalLink, Mail, MapPin, Phone } from 'lucide-react';
+import { Clock, ExternalLink, Mail, MapPin, Phone } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import type { GovernmentAgency } from '../../types/api';
 
@@ -36,6 +36,11 @@ export function AgencyCard({ agency }: { agency: GovernmentAgency }) {
           <a href={`mailto:${agency.email}`} className="flex items-center gap-2 hover:text-primary">
             <Mail size={14} className="shrink-0 text-slate-400" /> {agency.email}
           </a>
+        )}
+        {agency.workingHours && (
+          <span className="flex items-center gap-2">
+            <Clock size={14} className="shrink-0 text-slate-400" /> {agency.workingHours}
+          </span>
         )}
       </div>
 

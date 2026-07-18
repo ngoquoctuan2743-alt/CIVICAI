@@ -49,18 +49,22 @@ def _fetch_sources() -> list[tuple[str, str, str]]:
 
     sources: list[tuple[str, str, str]] = []
     with get_conn() as conn, conn.cursor() as cur:
-        # Văn bản pháp luật: tiêu đề + số hiệu + cơ quan ban hành + tóm tắt
+        # Văn bản pháp luật: tiêu đề + số hiệu + cơ quan ban hành + toàn văn (ưu tiên
+        # content nếu đã nhập — cột thêm ở PROMPT 17) hoặc tóm tắt nếu chưa có toàn văn
         cur.execute(
-            """SELECT id::text, code, title, doc_type::text, issuing_body, coalesce(summary,'')
+            """SELECT id::text, code, title, doc_type::text, issuing_body,
+                      coalesce(nullif(content,''), summary,''), coalesce(version,'')
                FROM legal_documents WHERE status = 'CON_HIEU_LUC'"""
         )
-        for doc_id, code, title, doc_type, body, summary in cur.fetchall():
-            text = f"{title} (số hiệu {code}, {doc_type} do {body} ban hành). {summary}"
+        for doc_id, code, title, doc_type, body, body_text, version in cur.fetchall():
+            version_part = f" (phiên bản: {version})" if version else ""
+            text = f"{title} (số hiệu {code}, {doc_type} do {body} ban hành{version_part}). {body_text}"
             sources.append(("LEGAL_DOCUMENT", doc_id, text))
 
-        # Thủ tục hành chính: mô tả + phí + thời hạn + các bước + giấy tờ
+        # Thủ tục hành chính: lĩnh vực + kết quả + mô tả + phí + thời hạn + các bước + giấy tờ
         cur.execute(
-            """SELECT p.id::text, p.name, coalesce(p.description,''), coalesce(p.fee_text,''),
+            """SELECT p.id::text, p.name, coalesce(p.description,''), coalesce(p.category,''),
+                      coalesce(p.expected_result,''), coalesce(p.fee_text,''),
                       coalesce(p.processing_time_text,''), coalesce(p.legal_basis_text,''),
                       coalesce(a.name,'')
                FROM administrative_procedures p
@@ -68,7 +72,7 @@ def _fetch_sources() -> list[tuple[str, str, str]]:
                WHERE p.status = 'ACTIVE'"""
         )
         procedures = cur.fetchall()
-        for pid, name, desc, fee, ptime, basis, agency in procedures:
+        for pid, name, desc, category, expected_result, fee, ptime, basis, agency in procedures:
             cur.execute(
                 """SELECT step_number, title, coalesce(description,'')
                    FROM procedure_steps WHERE procedure_id = %s ORDER BY step_number""",
@@ -81,23 +85,26 @@ def _fetch_sources() -> list[tuple[str, str, str]]:
                 (pid,),
             )
             reqs = "; ".join(r[0] for r in cur.fetchall())
+            category_part = f"Lĩnh vực: {category}. " if category else ""
+            result_part = f"Kết quả: {expected_result}. " if expected_result else ""
             text = (
-                f"Thủ tục: {name}. {desc} Cơ quan thực hiện: {agency}. "
-                f"Lệ phí: {fee}. Thời hạn giải quyết: {ptime}. Căn cứ pháp lý: {basis}. "
+                f"Thủ tục: {name}. {category_part}{desc} Cơ quan thực hiện: {agency}. "
+                f"{result_part}Lệ phí: {fee}. Thời hạn giải quyết: {ptime}. Căn cứ pháp lý: {basis}. "
                 f"Hồ sơ cần chuẩn bị: {reqs}. Trình tự thực hiện: {steps}"
             )
             sources.append(("PROCEDURE", pid, text))
 
-        # Cơ quan nhà nước: tên + địa chỉ + liên hệ
+        # Cơ quan nhà nước: tên + địa chỉ + liên hệ + giờ làm việc
         cur.execute(
             """SELECT id::text, name, level::text, coalesce(address,''), coalesce(phone,''),
-                      coalesce(email,''), coalesce(website,'')
+                      coalesce(email,''), coalesce(website,''), coalesce(working_hours,'')
                FROM government_agencies"""
         )
-        for aid, name, level, address, phone, email, website in cur.fetchall():
+        for aid, name, level, address, phone, email, website, working_hours in cur.fetchall():
+            hours_part = f" Giờ làm việc: {working_hours}." if working_hours else ""
             text = (
                 f"Cơ quan nhà nước: {name} (cấp {level}). Địa chỉ: {address}. "
-                f"Điện thoại: {phone}. Email: {email}. Website: {website}"
+                f"Điện thoại: {phone}. Email: {email}. Website: {website}.{hours_part}"
             )
             sources.append(("AGENCY", aid, text))
 

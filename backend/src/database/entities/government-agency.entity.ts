@@ -47,4 +47,8 @@ export class GovernmentAgencyEntity extends BaseDbEntity {
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   website: string | null;
+
+  /** Giờ làm việc, vd: "Thứ 2 - Thứ 6, 7:30 - 17:00" */
+  @Column({ name: 'working_hours', type: 'varchar', length: 255, nullable: true })
+  workingHours: string | null;
 }

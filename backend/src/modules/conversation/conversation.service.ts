@@ -14,8 +14,10 @@ import { MessageEntity } from '../../database/entities/message.entity';
 import { AppLoggerService } from '../../logger/logger.service';
 import { AiChatHistoryItem } from '../ai-client/ai-client.types';
 import { AiClientService } from '../ai-client/ai-client.service';
+import { ConversationQueryDto } from './dto/conversation-query.dto';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
+import { RenameConversationDto } from './dto/rename-conversation.dto';
 import { SubmitFeedbackDto } from './dto/submit-feedback.dto';
 
 /** Độ dài tối đa của tiêu đề tự sinh từ tin nhắn đầu tiên */
@@ -55,15 +57,39 @@ export class ConversationService {
     return this.conversationRepo.save(conversation);
   }
 
-  /** Lịch sử hội thoại của user (mới nhất trước) */
-  async findMine(userId: string, query: PaginationQueryDto) {
-    const [items, total] = await this.conversationRepo.findAndCount({
-      where: { userId },
-      order: { updatedAt: 'DESC' },
-      skip: (query.page - 1) * query.limit,
-      take: query.limit,
-    });
+  /** Lịch sử hội thoại của user (mới nhất trước) — có thể tìm theo tiêu đề */
+  async findMine(userId: string, query: ConversationQueryDto) {
+    const qb = this.conversationRepo
+      .createQueryBuilder('conversation')
+      .where('conversation.userId = :userId', { userId })
+      .orderBy('conversation.updatedAt', 'DESC');
+
+    if (query.search) {
+      qb.andWhere('conversation.title ILIKE :search', { search: `%${query.search}%` });
+    }
+
+    const [items, total] = await qb
+      .skip((query.page - 1) * query.limit)
+      .take(query.limit)
+      .getManyAndCount();
+
     return { items, total, page: query.page, limit: query.limit };
+  }
+
+  /** Đổi tên hội thoại (kiểm tra quyền sở hữu) */
+  async rename(userId: string, conversationId: string, dto: RenameConversationDto) {
+    const conversation = await this.findOwnedConversation(userId, conversationId);
+    conversation.title = dto.title;
+    conversation.updatedBy = userId;
+    return this.conversationRepo.save(conversation);
+  }
+
+  /** Xóa hội thoại (soft delete, kiểm tra quyền sở hữu) */
+  async remove(userId: string, conversationId: string): Promise<{ message: string }> {
+    await this.findOwnedConversation(userId, conversationId);
+    await this.conversationRepo.softDelete({ id: conversationId });
+    this.logger.log(`Conversation ${conversationId} da bi xoa boi user ${userId}`);
+    return { message: 'Đã xóa hội thoại' };
   }
 
   /** Danh sách tin nhắn của một hội thoại (kiểm tra quyền sở hữu) */

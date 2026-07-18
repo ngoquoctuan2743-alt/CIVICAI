@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ErrorCode } from '../../common/constants/error-code.constants';
@@ -15,6 +16,9 @@ describe('UsersService', () => {
   const profileRepo = { findOne: jest.fn() };
   const authService = { revokeAllTokens: jest.fn() };
   const logger = { setContext: jest.fn(), log: jest.fn(), warn: jest.fn(), error: jest.fn() };
+  const configService = {
+    getOrThrow: jest.fn().mockReturnValue({ uploadDir: './uploads', maxFileSizeBytes: 8 * 1024 * 1024 }),
+  };
 
   const baseUser = {
     id: 'user-1',
@@ -36,6 +40,7 @@ describe('UsersService', () => {
         { provide: getRepositoryToken(CitizenProfileEntity), useValue: profileRepo },
         { provide: AuthService, useValue: authService },
         { provide: AppLoggerService, useValue: logger },
+        { provide: ConfigService, useValue: configService },
       ],
     }).compile();
 

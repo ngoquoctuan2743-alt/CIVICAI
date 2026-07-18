@@ -1,4 +1,4 @@
-import { Building2, MessageSquare, Scale, User, FileText } from 'lucide-react';
+import { Building2, LayoutDashboard, MessageSquare, Scale, User, FileText } from 'lucide-react';
 
 /** Danh sách điều hướng dùng chung cho Sidebar + MobileNav */
 export const NAV_ITEMS = [
@@ -8,3 +8,6 @@ export const NAV_ITEMS = [
   { href: '/agencies', label: 'Cơ quan nhà nước', icon: Building2 },
   { href: '/profile', label: 'Hồ sơ của tôi', icon: User },
 ] as const;
+
+/** Chỉ hiển thị cho tài khoản có role ADMIN — tách riêng để lọc động theo user */
+export const ADMIN_NAV_ITEM = { href: '/admin', label: 'Quản trị', icon: LayoutDashboard } as const;

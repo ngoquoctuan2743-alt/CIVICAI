@@ -45,13 +45,28 @@ Write-Host "==> [5/6] Khoi dong Backend, AI Service, Frontend, Nginx..." -Foregr
 docker compose --env-file .env.development up -d
 if ($LASTEXITCODE -ne 0) { throw "Khoi dong service that bai. Xem 'docker compose logs'." }
 
-Write-Host "==> [6/6] Nap kho tri thuc AI (embedding tu du lieu da seed)..." -ForegroundColor Cyan
-Start-Sleep -Seconds 3
-try {
-  Invoke-RestMethod -Method Post -Uri "http://localhost:8000/ai/ingest" -TimeoutSec 30 | Out-Null
-  Write-Host "    Ingest thanh cong." -ForegroundColor Green
-} catch {
-  Write-Host "    Canh bao: ingest that bai hoac AI Service chua san sang ($($_.Exception.Message)). Thu chay lai: curl -X POST http://localhost:8000/ai/ingest" -ForegroundColor Yellow
+Write-Host "==> [6/6] Cho AI Service san sang roi nap kho tri thuc..." -ForegroundColor Cyan
+# AI Service nap model embedding (e5) vao bo nho khi khoi dong lan dau sau moi lan
+# container bi tao lai -> co the mat hon 3s. Poll /health toi da 60s truoc khi ingest.
+$aiReady = $false
+for ($i = 0; $i -lt 20; $i++) {
+  try {
+    Invoke-RestMethod -Uri "http://localhost:8000/health" -TimeoutSec 3 | Out-Null
+    $aiReady = $true
+    break
+  } catch {
+    Start-Sleep -Seconds 3
+  }
+}
+if (-not $aiReady) {
+  Write-Host "    Canh bao: AI Service chua san sang sau 60s. Thu chay lai thu cong: curl -X POST http://localhost:8000/ai/ingest" -ForegroundColor Yellow
+} else {
+  try {
+    Invoke-RestMethod -Method Post -Uri "http://localhost:8000/ai/ingest" -TimeoutSec 60 | Out-Null
+    Write-Host "    Ingest thanh cong." -ForegroundColor Green
+  } catch {
+    Write-Host "    Canh bao: ingest that bai ($($_.Exception.Message)). Thu chay lai: curl -X POST http://localhost:8000/ai/ingest" -ForegroundColor Yellow
+  }
 }
 
 Write-Host ""

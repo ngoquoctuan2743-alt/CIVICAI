@@ -12,7 +12,10 @@ export function ProcedureCard({ procedure }: { procedure: AdministrativeProcedur
     >
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-medium text-slate-800">{procedure.name}</h3>
-        <Badge tone="blue" className="shrink-0">{procedure.code}</Badge>
+        <div className="flex shrink-0 gap-1.5">
+          {procedure.category && <Badge tone="gray">{procedure.category}</Badge>}
+          <Badge tone="blue">{procedure.code}</Badge>
+        </div>
       </div>
       {procedure.description && <p className="line-clamp-2 text-sm text-slate-500">{procedure.description}</p>}
       <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">

@@ -40,7 +40,7 @@ export default function ChatDetailPage() {
       try {
         const [messagesRes, conversationsRes] = await Promise.all([
           conversationService.getMessages(conversationId),
-          conversationService.findMine(1, 100),
+          conversationService.findMine({ limit: 100 }),
         ]);
         if (cancelled) return;
         setTimeline(messagesRes.items.map((m) => ({ kind: 'message', key: m.id, message: m })));
