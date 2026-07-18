@@ -20,10 +20,19 @@ class Settings(BaseSettings):
     environment: str = "development"
 
     # ---- LLM (Adapter Pattern - đổi provider bằng cấu hình) ----
-    llm_provider: str = "claude"  # claude | openai | gemini | local | mock
+    llm_provider: str = "claude"  # claude | gemini | openai | local | mock
     anthropic_api_key: str = ""
     claude_model: str = "claude-opus-4-8"
     llm_max_tokens: int = 2048
+
+    # ---- LLM: Gemini (PROMPT 01 - Tích hợp Gemini) ----
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-flash-latest"
+    gemini_timeout_ms: int = 30000
+    gemini_max_retries: int = 3
+    gemini_temperature: float = 0.7
+    gemini_top_p: float = 0.95
+    gemini_top_k: int = 40
 
     # ---- Embedding ----
     embedding_provider: str = "e5"  # e5 | mock

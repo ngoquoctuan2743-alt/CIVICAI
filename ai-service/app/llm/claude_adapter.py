@@ -4,6 +4,7 @@ Model: claude-opus-4-8 (đã chốt). Structured output qua output_config.format
 """
 
 import logging
+import time
 
 from anthropic import AsyncAnthropic
 
@@ -101,3 +102,30 @@ class ClaudeAdapter(LlmClient):
             return {"error": "Ảnh không thể xử lý"}
         text = next((b.text for b in response.content if b.type == "text"), "{}")
         return json.loads(text)
+
+    async def document_extract(
+        self, file_bytes: bytes, media_type: str, prompt: str, schema: dict
+    ) -> dict:
+        """Claude adapter chưa hỗ trợ đọc PDF trực tiếp (ngoài phạm vi PHASE 3).
+
+        Dùng vision_extract cho ảnh, hoặc chuyển LLM_PROVIDER=gemini để đọc PDF.
+        """
+        raise NotImplementedError(
+            "ClaudeAdapter chưa triển khai document_extract (PDF). "
+            "Dùng vision_extract cho ảnh, hoặc đặt LLM_PROVIDER=gemini để đọc PDF trực tiếp."
+        )
+
+    async def health_check(self) -> dict:
+        """Ping metadata model (không sinh nội dung, không tốn token)."""
+        started = time.monotonic()
+        try:
+            await self._client.models.retrieve(self._model)
+        except Exception as exc:  # noqa: BLE001 - health check không được ném lỗi ra ngoài
+            logger.warning("claude_health_check_failed model=%s error=%s", self._model, exc)
+            return {"reachable": False, "latency_ms": None, "model": self._model, "error": str(exc)}
+        return {
+            "reachable": True,
+            "latency_ms": round((time.monotonic() - started) * 1000),
+            "model": self._model,
+            "error": None,
+        }

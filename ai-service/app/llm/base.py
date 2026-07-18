@@ -37,6 +37,20 @@ class LlmClient(ABC):
     ) -> dict:
         """Đọc ảnh (giấy tờ) và trích xuất JSON đúng schema."""
 
+    @abstractmethod
+    async def document_extract(
+        self, file_bytes: bytes, media_type: str, prompt: str, schema: dict
+    ) -> dict:
+        """Đọc tài liệu (PDF...) và trích xuất JSON đúng schema (PROMPT 01 - Gemini)."""
+
+    @abstractmethod
+    async def health_check(self) -> dict:
+        """Kiểm tra kết nối tới provider mà không sinh nội dung (dùng cho GET /ai/health).
+
+        Trả về {"reachable": bool, "latency_ms": int | None, "model": str, "error": str | None}.
+        KHÔNG được ném lỗi ra ngoài — mọi lỗi phải được gói vào "error".
+        """
+
 
 class NotImplementedAdapter(LlmClient):
     """Adapter giữ chỗ cho provider chưa triển khai — báo lỗi rõ ràng."""
@@ -59,5 +73,13 @@ class NotImplementedAdapter(LlmClient):
         return {}
 
     async def vision_extract(self, image_b64, media_type, prompt, schema) -> dict:  # noqa: D102
+        self._raise()
+        return {}
+
+    async def document_extract(self, file_bytes, media_type, prompt, schema) -> dict:  # noqa: D102
+        self._raise()
+        return {}
+
+    async def health_check(self) -> dict:  # noqa: D102
         self._raise()
         return {}

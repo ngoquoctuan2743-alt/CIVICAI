@@ -37,3 +37,13 @@ class MockLlmAdapter(LlmClient):
         if self.canned_json is not None:
             return self.canned_json
         return {"docType": "CCCD", "fields": {}, "rawText": "[MOCK OCR]", "confidence": 0.5}
+
+    async def document_extract(self, file_bytes, media_type, prompt, schema) -> dict:
+        self.calls.append({"type": "document_extract", "media_type": media_type})
+        if self.canned_json is not None:
+            return self.canned_json
+        return {"docType": "MOCK_PDF", "fields": {}, "rawText": "[MOCK PDF]", "confidence": 0.5}
+
+    async def health_check(self) -> dict:
+        self.calls.append({"type": "health_check"})
+        return {"reachable": True, "latency_ms": 0, "model": "mock", "error": None}

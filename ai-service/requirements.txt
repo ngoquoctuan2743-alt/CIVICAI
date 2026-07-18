@@ -9,6 +9,9 @@ httpx==0.28.1
 # LLM (Claude API)
 anthropic>=0.116.0
 
+# LLM (Gemini API - PROMPT 01)
+google-genai>=2.12.1
+
 # Database (PostgreSQL + pgvector)
 psycopg[binary]==3.2.4
 psycopg-pool==3.2.4

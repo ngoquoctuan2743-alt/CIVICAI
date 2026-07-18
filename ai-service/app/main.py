@@ -58,3 +58,8 @@ async def on_startup() -> None:
             "ANTHROPIC_API_KEY chua cau hinh — /ai/chat, /ai/voice, /ai/document se tra 503. "
             "Dien key vao ai-service/.env hoac dat LLM_PROVIDER=mock de demo khong can key."
         )
+    if settings.llm_provider == "gemini" and not settings.gemini_api_key:
+        logger.warning(
+            "GEMINI_API_KEY chua cau hinh — /ai/chat, /ai/voice, /ai/document, /ai/health "
+            "se tra 503. Dien key vao ai-service/.env hoac dat LLM_PROVIDER=mock de demo khong can key."
+        )

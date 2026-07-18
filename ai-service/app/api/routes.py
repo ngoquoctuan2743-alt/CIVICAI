@@ -120,3 +120,16 @@ async def ingest() -> dict:
     """
     stats = ingest_from_database(_store(), get_embedder())
     return {"status": "ok", **stats}
+
+
+@router.get("/health", summary="Kiểm tra kết nối LLM provider đang active (PROMPT 01 - Gemini)")
+async def ai_health() -> dict:
+    """Ping provider LLM đang cấu hình qua LLM_PROVIDER — không sinh nội dung, không tốn token."""
+    provider = get_settings().llm_provider
+    try:
+        result = await get_llm().health_check()
+    except NotImplementedError as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
+    except RuntimeError as exc:  # thiếu API key khi khởi tạo adapter
+        return {"provider": provider, "reachable": False, "latency_ms": None, "model": None, "error": str(exc)}
+    return {"provider": provider, **result}

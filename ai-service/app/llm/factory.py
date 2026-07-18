@@ -17,12 +17,18 @@ def _claude() -> LlmClient:
     return ClaudeAdapter()
 
 
+def _gemini() -> LlmClient:
+    from app.llm.gemini_adapter import GeminiAdapter
+
+    return GeminiAdapter()
+
+
 _REGISTRY: dict[str, Callable[[], LlmClient]] = {
     "claude": _claude,
+    "gemini": _gemini,
     "mock": MockLlmAdapter,
     # Các provider dưới đây đã đăng ký chỗ nhưng CHƯA có adapter (mở rộng sau)
     "openai": lambda: NotImplementedAdapter("openai"),
-    "gemini": lambda: NotImplementedAdapter("gemini"),
     "local": lambda: NotImplementedAdapter("local"),
 }
 
