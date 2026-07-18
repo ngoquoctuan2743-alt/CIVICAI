@@ -10,10 +10,7 @@ export interface RequestContextData {
   requestId: string;
   /** Thời điểm request bắt đầu (epoch ms) — dùng tính thời gian xử lý */
   startTime: number;
-  /**
-   * Mã người dùng đã xác thực.
-   * TODO(auth): AuthGuard sẽ gán giá trị này sau khi triển khai Authentication.
-   */
+  /** Mã người dùng đã xác thực — AuthGuard gán giá trị này sau khi verify JWT */
   userId?: string;
 }
 

@@ -27,6 +27,8 @@ Xem chi tiết tại [`docs/INSTALL.md`](docs/INSTALL.md) và [`docs/DEPLOYMENT.
 
 ## Tài liệu
 
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Sơ đồ kiến trúc hệ thống (container diagram)
+- [`docs/DATABASE.md`](docs/DATABASE.md) — Sơ đồ quan hệ dữ liệu (ERD)
 - [`docs/INSTALL.md`](docs/INSTALL.md) — Cài đặt
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — Kiến trúc container, vòng đời vận hành
 - [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) — Toàn bộ biến môi trường

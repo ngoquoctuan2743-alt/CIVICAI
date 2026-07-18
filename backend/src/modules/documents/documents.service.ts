@@ -1,38 +1,13 @@
-import { randomUUID } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { extname, join } from 'node:path';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AppException } from '../../common/exceptions/app.exception';
+import { saveImageToDisk, validateImageFile } from '../../common/utils/image-upload.util';
 import { StorageConfig } from '../../config/configuration';
 import { DocumentPurpose, OcrStatus } from '../../database/entities/enums';
 import { DocumentEntity } from '../../database/entities/document.entity';
 import { AppLoggerService } from '../../logger/logger.service';
 import { AiClientService } from '../ai-client/ai-client.service';
-
-/** Danh sách mediaType ảnh được chấp nhận cho OCR (khớp AI Service) */
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
-
-/** Magic bytes thật của từng định dạng — không tin mimetype do client tự khai báo */
-const MAGIC_BYTE_CHECKS: Record<(typeof ALLOWED_MIME_TYPES)[number], (buf: Buffer) => boolean> = {
-  'image/jpeg': (buf) => buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff,
-  'image/png': (buf) =>
-    buf.length >= 8 &&
-    buf[0] === 0x89 &&
-    buf[1] === 0x50 &&
-    buf[2] === 0x4e &&
-    buf[3] === 0x47 &&
-    buf[4] === 0x0d &&
-    buf[5] === 0x0a &&
-    buf[6] === 0x1a &&
-    buf[7] === 0x0a,
-  'image/webp': (buf) =>
-    buf.length >= 12 &&
-    buf.subarray(0, 4).toString('ascii') === 'RIFF' &&
-    buf.subarray(8, 12).toString('ascii') === 'WEBP',
-};
 
 /** Gợi ý hành động tiếp theo theo loại giấy tờ nhận diện được */
 const SUGGESTED_ACTIONS_BY_DOC_TYPE: Record<string, string[]> = {
@@ -62,10 +37,10 @@ export class DocumentsService {
     this.storage = configService.getOrThrow<StorageConfig>('storage');
   }
 
-  async analyze(userId: string, file: Express.Multer.File) {
-    this.validateFile(file);
+  async analyze(userId: string, file: Express.Multer.File | undefined) {
+    validateImageFile(file, this.storage.maxFileSizeBytes, 'Thiếu file để phân tích (field "file")');
 
-    const storageKey = await this.saveToDisk(file);
+    const storageKey = await saveImageToDisk(file, this.storage.uploadDir, 'documents');
 
     const document = await this.documentRepo.save(
       this.documentRepo.create({
@@ -116,32 +91,4 @@ export class DocumentsService {
     });
   }
 
-  private validateFile(file: Express.Multer.File | undefined): void {
-    if (!file) {
-      throw AppException.badRequest('Thiếu file để phân tích (field "file")');
-    }
-    if (!ALLOWED_MIME_TYPES.includes(file.mimetype as (typeof ALLOWED_MIME_TYPES)[number])) {
-      throw AppException.badRequest(
-        `Định dạng ảnh không hỗ trợ: ${file.mimetype}. Chỉ chấp nhận: ${ALLOWED_MIME_TYPES.join(', ')}`,
-      );
-    }
-    const mimetype = file.mimetype as (typeof ALLOWED_MIME_TYPES)[number];
-    if (!MAGIC_BYTE_CHECKS[mimetype](file.buffer)) {
-      throw AppException.badRequest(
-        `Nội dung file không khớp định dạng ảnh khai báo (${file.mimetype}). File có thể bị giả mạo.`,
-      );
-    }
-    if (file.size > this.storage.maxFileSizeBytes) {
-      throw AppException.badRequest(
-        `File vượt quá dung lượng tối đa ${Math.round(this.storage.maxFileSizeBytes / 1024 / 1024)}MB`,
-      );
-    }
-  }
-
-  private async saveToDisk(file: Express.Multer.File): Promise<string> {
-    await mkdir(join(this.storage.uploadDir, 'documents'), { recursive: true });
-    const storageKey = `documents/${randomUUID()}${extname(file.originalname) || '.jpg'}`;
-    await writeFile(join(this.storage.uploadDir, storageKey), file.buffer);
-    return storageKey;
-  }
 }

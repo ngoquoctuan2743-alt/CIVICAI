@@ -1,11 +1,9 @@
-import { randomUUID } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { extname, join } from 'node:path';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AppException } from '../../common/exceptions/app.exception';
+import { saveImageToDisk, validateImageFile } from '../../common/utils/image-upload.util';
 import { StorageConfig } from '../../config/configuration';
 import { CitizenProfileEntity } from '../../database/entities/citizen-profile.entity';
 import { UserStatus } from '../../database/entities/enums';
@@ -16,20 +14,6 @@ import { ChangePasswordDto } from '../auth/dto/change-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 import { UserQueryDto } from './dto/user-query.dto';
-
-/** Định dạng ảnh cho phép làm avatar (khớp OCR — DocumentsService) */
-const ALLOWED_AVATAR_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
-const AVATAR_MAGIC_BYTE_CHECKS: Record<(typeof ALLOWED_AVATAR_MIME_TYPES)[number], (buf: Buffer) => boolean> = {
-  'image/jpeg': (buf) => buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff,
-  'image/png': (buf) =>
-    buf.length >= 8 &&
-    buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47 &&
-    buf[4] === 0x0d && buf[5] === 0x0a && buf[6] === 0x1a && buf[7] === 0x0a,
-  'image/webp': (buf) =>
-    buf.length >= 12 &&
-    buf.subarray(0, 4).toString('ascii') === 'RIFF' &&
-    buf.subarray(8, 12).toString('ascii') === 'WEBP',
-};
 
 /**
  * UsersService — quản lý tài khoản của chính người dùng đang đăng nhập.
@@ -95,28 +79,10 @@ export class UsersService {
    * sung serving/CDN ở giai đoạn triển khai thật (ghi rõ trong known-limitations).
    */
   async uploadAvatar(userId: string, file: Express.Multer.File | undefined) {
-    if (!file) {
-      throw AppException.badRequest('Thiếu file ảnh đại diện (field "file")');
-    }
-    if (!ALLOWED_AVATAR_MIME_TYPES.includes(file.mimetype as (typeof ALLOWED_AVATAR_MIME_TYPES)[number])) {
-      throw AppException.badRequest(
-        `Định dạng ảnh không hỗ trợ: ${file.mimetype}. Chỉ chấp nhận: ${ALLOWED_AVATAR_MIME_TYPES.join(', ')}`,
-      );
-    }
-    const mimetype = file.mimetype as (typeof ALLOWED_AVATAR_MIME_TYPES)[number];
-    if (!AVATAR_MAGIC_BYTE_CHECKS[mimetype](file.buffer)) {
-      throw AppException.badRequest('Nội dung file không khớp định dạng ảnh khai báo. File có thể bị giả mạo.');
-    }
-    if (file.size > this.storage.maxFileSizeBytes) {
-      throw AppException.badRequest(
-        `File vượt quá dung lượng tối đa ${Math.round(this.storage.maxFileSizeBytes / 1024 / 1024)}MB`,
-      );
-    }
+    validateImageFile(file, this.storage.maxFileSizeBytes, 'Thiếu file ảnh đại diện (field "file")');
 
     const user = await this.findUserOrFail(userId);
-    await mkdir(join(this.storage.uploadDir, 'avatars'), { recursive: true });
-    const storageKey = `avatars/${randomUUID()}${extname(file.originalname) || '.jpg'}`;
-    await writeFile(join(this.storage.uploadDir, storageKey), file.buffer);
+    const storageKey = await saveImageToDisk(file, this.storage.uploadDir, 'avatars');
 
     user.avatarUrl = storageKey;
     user.updatedBy = userId;
