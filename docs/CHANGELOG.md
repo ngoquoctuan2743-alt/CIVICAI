@@ -1,5 +1,14 @@
 # CHANGELOG — VAIC 2026
 
+## PHASE 9 — MVP Freeze & Final Review (2026-07-18)
+
+- Final code review: xóa `BaseRepository`/`IBaseRepository` (dead code, 0 usage — pattern thật của dự án là inject thẳng TypeORM `Repository<T>`), xóa TODO đã lỗi thời (auth context — Authentication đã triển khai từ lâu).
+- Gộp logic validate file ảnh (magic bytes) trùng lặp giữa `DocumentsService` và `UsersService` vào `common/utils/image-upload.util.ts`.
+- Thêm `docs/ARCHITECTURE.md` (container diagram) và `docs/DATABASE.md` (ERD) — tài liệu dự thi còn thiếu.
+- Rà soát toàn bộ: không còn `console.log`/`print()`/`debugger` sót lại, không secret hard-code, không XXX/HACK marker.
+- Final QA trực tiếp qua browser thật: đăng nhập, chat (câu trả lời thật kèm nguồn), bấm feedback 👍, Dashboard Admin — số liệu đúng (9 users/30 procedures/20 legal/20 agencies/2 feedback).
+- Verify: 63/63 Jest backend PASS sau refactor, build sạch, không lỗi TypeScript/compile.
+
 ## PHASE 8 — MVP Feature Completion & Release Candidate v2 (2026-07-18)
 
 - **Database & Data Layer**: bảng mới `audit_logs`, `voice_logs`; cột mới `category`/`expected_result` (procedures), `content`/`version`/`metadata` (legal_documents), `working_hours` (agencies), `avatar_url` + `reset_token_*` (users). Mở rộng seed: 20 agencies, 20 legal documents, 30 procedures (từ 5/6/8), 1 admin + 5 citizen kèm citizen_profiles, conversation + feedback mẫu.

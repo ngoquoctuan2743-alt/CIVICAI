@@ -2,7 +2,7 @@
 
 > Trợ lý AI hỗ trợ người dân thực hiện thủ tục dịch vụ công (dự thi AI 2026).
 >
-> **Trạng thái:** ✅ PHASE 1-8 hoàn thành — Release Candidate v2, đầy đủ Dashboard Admin + RAG hoàn thiện, đóng gói bằng Docker Compose.
+> **Trạng thái:** ✅ PHASE 1-9 hoàn thành — MVP đã Freeze, sẵn sàng nộp bài dự thi VAIC 2026.
 
 ## Kiến trúc & Stack
 
@@ -46,4 +46,4 @@ Mọi thay đổi schema đi qua migration (không synchronize); mọi API trả
 
 ## Lộ trình
 
-PHASE 1 ✅ Khung dự án · PHASE 2 ✅ Backend Core · PHASE 3 ✅ AI Engine · PHASE 4 ✅ System Integration · PHASE 5 ✅ Frontend hoàn chỉnh · PHASE 6 ✅ System Stabilization · PHASE 7 ✅ Release Candidate · PHASE 8 ✅ MVP Feature Completion (Dashboard Admin, RAG hoàn thiện, Frontend đầy đủ) → PHASE 9 Competition Submission
+PHASE 1 ✅ Khung dự án · PHASE 2 ✅ Backend Core · PHASE 3 ✅ AI Engine · PHASE 4 ✅ System Integration · PHASE 5 ✅ Frontend hoàn chỉnh · PHASE 6 ✅ System Stabilization · PHASE 7 ✅ Release Candidate · PHASE 8 ✅ MVP Feature Completion (Dashboard Admin, RAG hoàn thiện, Frontend đầy đủ) · PHASE 9 ✅ MVP Freeze & Final Review → Nộp bài dự thi
