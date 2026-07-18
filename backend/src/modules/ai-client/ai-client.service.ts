@@ -61,6 +61,20 @@ export class AiClientService {
     return this.call<AiSearchResultDto>('/ai/search', { query, topK }, this.config.searchTimeoutMs);
   }
 
+  /**
+   * GET /health trên AI Service — dùng cho readiness check của Backend (PHASE 7).
+   * Không đi qua Circuit Breaker (đây là kiểm tra hạ tầng, không phải lỗi nghiệp vụ)
+   * và không throw — trả boolean để HealthController tự quyết định response.
+   */
+  async checkHealth(): Promise<boolean> {
+    try {
+      await firstValueFrom(this.http.get(`${this.baseUrl}/health`, { timeout: 3000 }));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   private async call<T>(path: string, body: unknown, timeoutMs: number, isRetry = false): Promise<T> {
     if (!this.breaker.canRequest()) {
       this.logger.warn(`Circuit breaker dang OPEN — tu choi goi ${path} ngay lap tuc`);

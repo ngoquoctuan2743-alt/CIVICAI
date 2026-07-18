@@ -1,7 +1,7 @@
 # ==================================================
 # VAIC 2026 - Docker Compose
-# PHASE 1: chỉ PostgreSQL hoạt động (phục vụ migration/dev).
-# Các service ứng dụng sẽ được bật ở PHASE 8 (Deployment).
+# PHASE 7: đầy đủ 5 service — postgres, backend, ai-service, frontend, nginx.
+# `docker compose up -d --build` khởi động toàn bộ hệ thống.
 # ==================================================
 
 services:
@@ -27,24 +27,93 @@ services:
       timeout: 3s
       retries: 10
 
-  # ---- PHASE 8 (placeholder - chưa bật) ----
-  # backend:
-  #   build: ./backend
-  #   ports: ["3100:3100"]
-  #   depends_on: { postgres: { condition: service_healthy } }
-  #
-  # ai-service:
-  #   build: ./ai-service
-  #   ports: ["8000:8000"]
-  #
-  # frontend:
-  #   build: ./frontend
-  #   ports: ["3001:3000"]
-  #
-  # nginx:
-  #   image: nginx:alpine
-  #   ports: ["80:80"]
-  #   volumes: ["./deployment/nginx/nginx.conf:/etc/nginx/nginx.conf:ro"]
+  # ---- Backend: NestJS API ----
+  backend:
+    build: ./backend
+    container_name: vaic-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3100
+      API_PREFIX: api/v1
+      JWT_SECRET: ${JWT_SECRET:-vaic-dev-secret-change-me}
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_DAYS: 7
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-vaic}
+      DB_PASSWORD: ${DB_PASSWORD:-vaic_dev_password}
+      DB_NAME: ${DB_NAME:-vaic}
+      LOG_LEVEL: ${LOG_LEVEL:-log}
+      AI_SERVICE_BASE_URL: http://ai-service:8000
+      AI_CHAT_TIMEOUT_MS: 20000
+      AI_DOCUMENT_TIMEOUT_MS: 25000
+      AI_SEARCH_TIMEOUT_MS: 8000
+      AI_CIRCUIT_BREAKER_THRESHOLD: 5
+      AI_CIRCUIT_BREAKER_RESET_MS: 30000
+      UPLOAD_DIR: /app/uploads
+      MAX_FILE_SIZE_BYTES: 8388608
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3001}
+    ports:
+      - "3100:3100"
+    volumes:
+      - vaic_backend_uploads:/app/uploads
+
+  # ---- AI Service: FastAPI + RAG + LLM Adapter ----
+  ai-service:
+    build: ./ai-service
+    container_name: vaic-ai-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: ${NODE_ENV:-production}
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-opus-4-8}
+      EMBEDDING_PROVIDER: e5
+      EMBEDDING_MODEL: intfloat/multilingual-e5-small
+      VOICE_ENGINE: browser
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-vaic}
+      DB_PASSWORD: ${DB_PASSWORD:-vaic_dev_password}
+      DB_NAME: ${DB_NAME:-vaic}
+      BACKEND_BASE_URL: http://backend:3100/api/v1
+    ports:
+      - "8000:8000"
+
+  # ---- Frontend: Next.js ----
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3100/api/v1}
+    container_name: vaic-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3001:3001"
+
+  # ---- Nginx: reverse proxy gateway (tùy chọn, cho demo/nộp bài) ----
+  nginx:
+    image: nginx:alpine
+    container_name: vaic-nginx
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - ai-service
+      - frontend
+    ports:
+      - "80:80"
+    volumes:
+      - ./deployment/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
 
 volumes:
   vaic_postgres_data:
+  vaic_backend_uploads:

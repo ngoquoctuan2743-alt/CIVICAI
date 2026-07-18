@@ -2,60 +2,46 @@
 
 > Trợ lý AI hỗ trợ người dân thực hiện thủ tục dịch vụ công (dự thi AI 2026).
 >
-> **Trạng thái:** ✅ PHASE 1-5 hoàn thành — hệ thống chạy đầy đủ end-to-end (Frontend ↔ Backend ↔ AI Service ↔ PostgreSQL).
+> **Trạng thái:** ✅ PHASE 1-7 hoàn thành — Release Candidate, đóng gói đầy đủ bằng Docker Compose.
 
 ## Kiến trúc & Stack
 
-| Tầng | Công nghệ | Thư mục | Port dev |
+| Tầng | Công nghệ | Thư mục | Port |
 |------|-----------|---------|----------|
 | Frontend | Next.js 15 + TypeScript + Tailwind | `frontend/` | 3001 |
 | Backend | NestJS 11 + TypeORM | `backend/` | 3100 |
 | AI Service | Python FastAPI + Claude API | `ai-service/` | 8000 |
 | Database | PostgreSQL 16 + pgvector (Docker) | `database/` | 5433 |
-| Gateway | Nginx (PHASE 8) | `deployment/nginx/` | 80 |
+| Gateway | Nginx | `deployment/nginx/` | 80 |
 
-## Chạy môi trường dev (đầy đủ, đúng thứ tự)
+## Chạy nhanh (1 lệnh, khuyến nghị)
 
-```bash
-# 1. Database
-docker compose up -d postgres
-
-# 2. AI Service (Docker — máy không cần Python)
-cd ai-service
-docker build -t vaic-ai-service .
-docker run -d --rm --name vaic-ai --network civicai_default \
-  -e DB_HOST=vaic-postgres -e DB_PORT=5432 -e DB_USER=vaic -e DB_PASSWORD=vaic_dev_password -e DB_NAME=vaic \
-  -e LLM_PROVIDER=claude -e ANTHROPIC_API_KEY=<key-that> \
-  -p 8000:8000 vaic-ai-service
-curl -X POST http://localhost:8000/ai/ingest   # nạp kho tri thức (luật/thủ tục/cơ quan)
-
-# 3. Backend
-cd ../backend
-npm install
-cp .env.example .env
-npm run migration:run       # 19 bảng + seed roles + seed demo data (34 tỉnh/thành, thủ tục, luật, cơ quan)
-npm run start:dev           # http://localhost:3100/api/v1
-
-# 4. Frontend
-cd ../frontend
-npm install
-cp .env.example .env.local
-npm run dev                 # http://localhost:3001
+```powershell
+.\scripts\setup.ps1        # build + migration + seed + khởi động toàn bộ 5 service
+.\scripts\healthcheck.ps1  # xác nhận tất cả PASS
 ```
 
-> **Không có `ANTHROPIC_API_KEY`?** Đặt `LLM_PROVIDER=mock` khi chạy AI Service — toàn bộ luồng vẫn hoạt động (RAG search dùng embedding thật), chỉ câu trả lời văn bản là giả lập.
+Xem chi tiết tại [`docs/INSTALL.md`](docs/INSTALL.md) và [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+
+> **Không có `ANTHROPIC_API_KEY`?** Mặc định `LLM_PROVIDER=mock` — toàn bộ luồng vẫn hoạt động (RAG search dùng embedding thật), chỉ câu trả lời văn bản là giả lập.
 
 ## Tài liệu
 
+- [`docs/INSTALL.md`](docs/INSTALL.md) — Cài đặt
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — Kiến trúc container, vòng đời vận hành
+- [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) — Toàn bộ biến môi trường
+- [`docs/API.md`](docs/API.md) — Danh sách API
+- [`docs/DEMO_GUIDE.md`](docs/DEMO_GUIDE.md) — Kịch bản demo
+- [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — Lịch sử thay đổi theo Phase
+- [`docs/known-limitations.md`](docs/known-limitations.md) — Giới hạn đã biết
 - [`docs/ai-architecture.md`](docs/ai-architecture.md) — AI Engine: LLM Adapter, RAG, OCR, Voice, Prompt Strategy
-- [`docs/system-integration.md`](docs/system-integration.md) — Sequence diagram Chat/OCR/Voice, API Mapping, Known Issues
-- [`backend/README.md`](backend/README.md) — API list, migration, cấu hình Phase 4
-- [`frontend/README.md`](frontend/README.md) — Component tree, State Management, Routing
+- [`docs/system-integration.md`](docs/system-integration.md) — Sequence diagram Chat/OCR/Voice, API Mapping
+- [`backend/README.md`](backend/README.md) · [`frontend/README.md`](frontend/README.md) — Chi tiết từng service
 
 ## Quy ước
 
-Mọi thay đổi schema đi qua migration (không synchronize); mọi API trả response chuẩn `{success, data|error, meta}`; secrets chỉ nằm trong `.env` (không commit).
+Mọi thay đổi schema đi qua migration (không synchronize); mọi API trả response chuẩn `{success, data|error, meta}`; secrets chỉ nằm trong `.env` (không commit, xem `.gitignore`).
 
 ## Lộ trình
 
-PHASE 1 ✅ Khung dự án · PHASE 2 ✅ Backend Core (Auth/CRUD) · PHASE 3 ✅ AI Engine (RAG/OCR/Voice) · PHASE 4 ✅ System Integration (Chat↔AI thật, Cache, Rate Limit, Circuit Breaker) · PHASE 5 ✅ Frontend hoàn chỉnh (12 trang) → PHASE 6 Testing & Deployment
+PHASE 1 ✅ Khung dự án · PHASE 2 ✅ Backend Core · PHASE 3 ✅ AI Engine · PHASE 4 ✅ System Integration · PHASE 5 ✅ Frontend hoàn chỉnh · PHASE 6 ✅ System Stabilization · PHASE 7 ✅ Release Candidate → PHASE 8 Competition Submission

@@ -1,11 +1,26 @@
 # ==================================================
-# CIVICAI Backend - Dockerfile (PLACEHOLDER)
-# Sẽ được cài đặt khi module Backend được khởi tạo
-# và công nghệ runtime được chốt.
+# VAIC 2026 Backend - Dockerfile (PHASE 7 Release Candidate)
+# Multi-stage: build NestJS (TypeScript) -> chạy bằng dist/ đã build
 # ==================================================
 
-# FROM <base-image>
-# WORKDIR /app
-# COPY . .
-# RUN <install dependencies>
-# CMD <start command>
+FROM node:24-alpine AS builder
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+# ---- Runtime image ----
+FROM node:24-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+COPY --from=builder /app/dist ./dist
+
+EXPOSE 3100
+CMD ["node", "dist/main.js"]

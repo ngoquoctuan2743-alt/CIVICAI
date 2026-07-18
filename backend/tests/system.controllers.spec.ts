@@ -1,7 +1,9 @@
 import { ConfigService } from '@nestjs/config';
+import { DataSource } from 'typeorm';
 import { HealthController } from '../src/modules/system/health.controller';
 import { VersionController } from '../src/modules/system/version.controller';
 import { AppLoggerService } from '../src/logger/logger.service';
+import { AiClientService } from '../src/modules/ai-client/ai-client.service';
 
 /**
  * Unit test cho các endpoint hệ thống (health/version).
@@ -28,19 +30,47 @@ function createMockConfig(values: Record<string, unknown>): ConfigService {
 }
 
 describe('HealthController', () => {
-  it('trả về trạng thái ok kèm environment và uptime', () => {
+  it('trả về trạng thái ok kèm environment, uptime và readiness (PHASE 7)', async () => {
+    const mockDataSource = { query: jest.fn().mockResolvedValue([{ '?column?': 1 }]) } as unknown as DataSource;
+    const mockAiClient = { checkHealth: jest.fn().mockResolvedValue(true) } as unknown as AiClientService;
+
     const controller = new HealthController(
       createMockLogger(),
       createMockConfig({ 'app.env': 'test' }),
+      mockDataSource,
+      mockAiClient,
     );
 
-    const result = controller.getHealth();
+    const result = await controller.getHealth();
 
     expect(result.status).toBe('ok');
     expect(result.environment).toBe('test');
     expect(result.uptimeSeconds).toBeGreaterThanOrEqual(0);
     // timestamp phải là ISO 8601 hợp lệ
     expect(new Date(result.timestamp).toISOString()).toBe(result.timestamp);
+    // PHASE 7: readiness check cho Database + AI Service
+    expect(result.ready).toBe(true);
+    expect(result.checks).toEqual({ database: 'ok', aiService: 'ok' });
+  });
+
+  it('ready=false va bao dung dependency loi khi Database/AI Service khong ket noi duoc', async () => {
+    const mockDataSource = {
+      query: jest.fn().mockRejectedValue(new Error('connection refused')),
+    } as unknown as DataSource;
+    const mockAiClient = { checkHealth: jest.fn().mockResolvedValue(false) } as unknown as AiClientService;
+
+    const controller = new HealthController(
+      createMockLogger(),
+      createMockConfig({ 'app.env': 'test' }),
+      mockDataSource,
+      mockAiClient,
+    );
+
+    const result = await controller.getHealth();
+
+    expect(result.status).toBe('ok'); // process van song (liveness khong doi)
+    expect(result.ready).toBe(false);
+    expect(result.checks).toEqual({ database: 'error', aiService: 'error' });
   });
 });
 
