@@ -25,6 +25,7 @@ import { ChunkingModule } from './modules/chunking/chunking.module';
 import { CitizenModule } from './modules/citizen/citizen.module';
 import { ConversationModule } from './modules/conversation/conversation.module';
 import { DocumentsModule } from './modules/documents/documents.module';
+import { EmbeddingModule } from './modules/embedding/embedding.module';
 import { GovernmentModule } from './modules/government/government.module';
 import { KnowledgeDocumentsModule } from './modules/knowledge-documents/knowledge-documents.module';
 import { LegalModule } from './modules/legal/legal.module';
@@ -108,6 +109,8 @@ import { VoiceModule } from './modules/voice/voice.module';
     KnowledgeDocumentsModule,
     // ---- RAG: Document Parsing & Intelligent Chunking Engine (Prompt 03) ----
     ChunkingModule,
+    // ---- RAG: Embedding Pipeline & Vector Indexing (Prompt 04) ----
+    EmbeddingModule,
     // ---- Dashboard Admin ----
     AdminModule,
   ],

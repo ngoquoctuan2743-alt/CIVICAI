@@ -67,6 +67,23 @@ export interface StorageConfig {
   maxDocumentFileSizeBytes: number;
 }
 
+/** Cấu hình Embedding Pipeline (Prompt 04) — Provider Abstraction, Gemini là provider mặc định */
+export interface EmbeddingConfig {
+  /** gemini | openai | voyage | jina | bge | local — chỉ 'gemini' có adapter thật, còn lại là stub */
+  provider: string;
+  geminiApiKey: string;
+  geminiModel: string;
+  /** Số chiều vector — Gemini hỗ trợ outputDimensionality tùy chỉnh (Matryoshka) */
+  dimension: number;
+  /** Số chunk gộp trong 1 lần gọi API (Batch processing) */
+  batchSize: number;
+  /** Số request đồng thời tối đa (Backpressure) */
+  maxConcurrency: number;
+  /** Giới hạn số request/phút (Rate limiting, API quota awareness) */
+  rateLimitPerMinute: number;
+  maxAttempts: number;
+}
+
 /** Cấu trúc cấu hình gốc của toàn backend */
 export interface RootConfig {
   app: AppConfig;
@@ -75,6 +92,7 @@ export interface RootConfig {
   database: DatabaseConfig;
   aiService: AiServiceConfig;
   storage: StorageConfig;
+  embedding: EmbeddingConfig;
 }
 
 /**
@@ -134,5 +152,17 @@ export default (): RootConfig => ({
     maxDocumentFileSizeBytes: process.env.MAX_DOCUMENT_FILE_SIZE_BYTES
       ? parseInt(process.env.MAX_DOCUMENT_FILE_SIZE_BYTES, 10)
       : 25 * 1024 * 1024,
+  },
+  embedding: {
+    provider: process.env.EMBEDDING_PROVIDER ?? 'gemini',
+    geminiApiKey: process.env.GEMINI_API_KEY ?? '',
+    geminiModel: process.env.GEMINI_EMBEDDING_MODEL ?? 'gemini-embedding-001',
+    dimension: process.env.EMBEDDING_DIMENSION ? parseInt(process.env.EMBEDDING_DIMENSION, 10) : 768,
+    batchSize: process.env.EMBEDDING_BATCH_SIZE ? parseInt(process.env.EMBEDDING_BATCH_SIZE, 10) : 20,
+    maxConcurrency: process.env.EMBEDDING_MAX_CONCURRENCY ? parseInt(process.env.EMBEDDING_MAX_CONCURRENCY, 10) : 2,
+    rateLimitPerMinute: process.env.EMBEDDING_RATE_LIMIT_PER_MINUTE
+      ? parseInt(process.env.EMBEDDING_RATE_LIMIT_PER_MINUTE, 10)
+      : 60,
+    maxAttempts: process.env.EMBEDDING_MAX_ATTEMPTS ? parseInt(process.env.EMBEDDING_MAX_ATTEMPTS, 10) : 3,
   },
 });

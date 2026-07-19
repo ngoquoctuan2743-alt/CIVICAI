@@ -184,13 +184,22 @@ describe('Chunking Pipeline API (e2e)', () => {
       expect(job.status).toBe('COMPLETED');
       expect(job.chunksProduced).toBeGreaterThan(100);
 
-      const chunksRes = await request(app.getHttpServer())
-        .get(`/admin/knowledge-documents/${document.id}/versions/${version.id}/chunks?limit=500`)
-        .set('Authorization', `Bearer ${adminToken}`)
-        .expect(200);
-      for (const c of chunksRes.body.data.items) {
-        expect(c.content.length).toBeLessThanOrEqual(1500);
+      // limit tối đa cho phép là MAX_PAGE_SIZE (100) — lặp qua nhiều trang để kiểm tra hết toàn bộ chunk
+      let page = 1;
+      let checked = 0;
+      for (;;) {
+        const chunksRes = await request(app.getHttpServer())
+          .get(`/admin/knowledge-documents/${document.id}/versions/${version.id}/chunks?limit=100&page=${page}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
+        for (const c of chunksRes.body.data.items) {
+          expect(c.content.length).toBeLessThanOrEqual(1500);
+        }
+        checked += chunksRes.body.data.items.length;
+        if (checked >= chunksRes.body.data.total) break;
+        page++;
       }
+      expect(checked).toBe(job.chunksProduced);
     }, 40000);
   });
 

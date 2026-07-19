@@ -6,8 +6,10 @@ import { KnowledgeDocumentTagEntity } from '../../database/entities/knowledge-do
 import { KnowledgeDocumentVersionEntity } from '../../database/entities/knowledge-document-version.entity';
 import { KnowledgeDocumentEntity } from '../../database/entities/knowledge-document.entity';
 import { ParsingLogEntity } from '../../database/entities/parsing-log.entity';
+import { EmbeddingModule } from '../embedding/embedding.module';
 import { ChunkingAdminController } from './chunking.admin.controller';
 import { ChunkProcessingQueueService } from './chunk-processing-queue.service';
+import { WorkerPool } from './worker-pool';
 
 /** Document Parsing & Intelligent Chunking Engine (Prompt 03) */
 @Module({
@@ -20,9 +22,10 @@ import { ChunkProcessingQueueService } from './chunk-processing-queue.service';
       KnowledgeDocumentEntity,
       KnowledgeDocumentTagEntity,
     ]),
+    EmbeddingModule,
   ],
   controllers: [ChunkingAdminController],
-  providers: [ChunkProcessingQueueService],
+  providers: [ChunkProcessingQueueService, WorkerPool],
   exports: [ChunkProcessingQueueService],
 })
 export class ChunkingModule {}

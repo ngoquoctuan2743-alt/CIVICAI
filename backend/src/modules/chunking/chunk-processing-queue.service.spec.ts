@@ -11,7 +11,9 @@ import { KnowledgeDocumentVersionEntity } from '../../database/entities/knowledg
 import { KnowledgeDocumentEntity } from '../../database/entities/knowledge-document.entity';
 import { ParsingLogEntity } from '../../database/entities/parsing-log.entity';
 import { AppLoggerService } from '../../logger/logger.service';
+import { EmbeddingQueueService } from '../embedding/embedding-queue.service';
 import { ChunkProcessingQueueService } from './chunk-processing-queue.service';
+import { WorkerPool } from './worker-pool';
 
 /**
  * Unit test — chỉ kiểm tra logic điều phối (enqueue/retry/cancel/query),
@@ -36,6 +38,12 @@ describe('ChunkProcessingQueueService (orchestration logic)', () => {
   const dataSource = { transaction: jest.fn() };
   const logger = { setContext: jest.fn(), log: jest.fn(), warn: jest.fn(), error: jest.fn() };
   const configService = { getOrThrow: jest.fn().mockReturnValue({ uploadDir: './uploads' }) };
+  // Mock toàn bộ WorkerPool — test này chỉ kiểm tra logic điều phối, KHÔNG
+  // được spawn worker_thread thật (xem lý do @Injectable() ở worker-pool.ts).
+  const pool = { execute: jest.fn(), destroy: jest.fn().mockResolvedValue(undefined) };
+  // Mock EmbeddingQueueService — hook Prompt 04 (chunk COMPLETED -> enqueue
+  // embedding) không được gọi service thật trong unit test điều phối này.
+  const embeddingQueue = { enqueue: jest.fn().mockResolvedValue(undefined) };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -52,6 +60,8 @@ describe('ChunkProcessingQueueService (orchestration logic)', () => {
         { provide: DataSource, useValue: dataSource },
         { provide: ConfigService, useValue: configService },
         { provide: AppLoggerService, useValue: logger },
+        { provide: WorkerPool, useValue: pool },
+        { provide: EmbeddingQueueService, useValue: embeddingQueue },
       ],
     }).compile();
     service = moduleRef.get(ChunkProcessingQueueService);

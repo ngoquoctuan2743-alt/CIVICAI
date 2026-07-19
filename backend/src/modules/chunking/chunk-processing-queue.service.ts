@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { join } from 'node:path';
 import { readFile } from 'node:fs/promises';
-import { Worker } from 'node:worker_threads';
 import { DataSource, Repository } from 'typeorm';
 import { AppException } from '../../common/exceptions/app.exception';
 import { StorageConfig } from '../../config/configuration';
@@ -15,14 +14,13 @@ import { KnowledgeDocumentVersionEntity } from '../../database/entities/knowledg
 import { KnowledgeDocumentEntity } from '../../database/entities/knowledge-document.entity';
 import { ParsingLogEntity } from '../../database/entities/parsing-log.entity';
 import { AppLoggerService } from '../../logger/logger.service';
+import { EmbeddingQueueService } from '../embedding/embedding-queue.service';
 import { deterministicChunkId } from './chunk-id.util';
 import { DEFAULT_CHUNKING_CONFIG } from './chunking.util';
 import { computeChunkChecksum } from './normalization.util';
-import type { ParsingWorkerError, ParsingWorkerInput, ParsingWorkerOutput } from './parsing.worker.mjs';
+import { WorkerPool } from './worker-pool';
 
 const MAX_CONCURRENCY = 2;
-const JOB_TIMEOUT_MS = 60_000;
-const WORKER_MAX_OLD_GEN_MB = 512;
 
 /**
  * ChunkProcessingQueueService — hàng đợi xử lý parsing & chunking BẤT ĐỒNG BỘ
@@ -38,8 +36,8 @@ export class ChunkProcessingQueueService implements OnModuleDestroy {
   private readonly storage: StorageConfig;
   private readonly pending: string[] = [];
   private activeCount = 0;
-  private readonly activeWorkers = new Map<string, Worker>();
-  private readonly cancelledJobIds = new Set<string>();
+  /** AbortController theo jobId — cho phép Admin API hủy job đang RUNNING (xem cancel()) */
+  private readonly abortControllers = new Map<string, AbortController>();
   /** Promise xử lý job đang chạy — onModuleDestroy PHẢI chờ hết trước khi cho phép app đóng kết nối DB */
   private readonly activeJobPromises = new Map<string, Promise<void>>();
 
@@ -59,6 +57,8 @@ export class ChunkProcessingQueueService implements OnModuleDestroy {
     private readonly dataSource: DataSource,
     configService: ConfigService,
     private readonly logger: AppLoggerService,
+    private readonly pool: WorkerPool,
+    private readonly embeddingQueue: EmbeddingQueueService,
   ) {
     this.logger.setContext(ChunkProcessingQueueService.name);
     this.storage = configService.getOrThrow<StorageConfig>('storage');
@@ -116,10 +116,8 @@ export class ChunkProcessingQueueService implements OnModuleDestroy {
       return job;
     }
     if (job.status === ChunkProcessingStatus.RUNNING) {
-      this.cancelledJobIds.add(jobId);
-      const worker = this.activeWorkers.get(jobId);
-      await worker?.terminate();
-      // status thật sự chuyển CANCELLED trong catch handler của processJob() khi worker bị terminate
+      this.abortControllers.get(jobId)?.abort();
+      // status thật sự chuyển CANCELLED trong catch handler của processJob() khi worker bị abort
       return (await this.jobRepo.findOne({ where: { id: jobId } })) ?? job;
     }
     throw AppException.badRequest(`Không thể hủy job ở trạng thái ${job.status}`);
@@ -224,57 +222,6 @@ export class ChunkProcessingQueueService implements OnModuleDestroy {
     }
   }
 
-  /**
-   * Worker LUÔN chạy bản đã biên dịch trong dist/ — kể cả khi app chính
-   * đang chạy qua ts-jest (dev/test). Lý do: từng thử "chạy thẳng .ts qua
-   * ts-node/register bên trong worker_thread" — gây Access Violation cấp
-   * native khi spawn worker thứ 2 trở đi trong cùng 1 tiến trình Jest (đã
-   * tái hiện độc lập). Rồi thử "Node type-stripping gốc + .mts" — hết
-   * crash nhưng Node không tự resolve specifier `.js` về file `.ts` cùng
-   * tên khi chạy chưa qua compile (đó là quy ước riêng của TypeScript, không
-   * phải Node runtime) -> "Cannot find module". Giải pháp bền vững nhất:
-   * worker luôn nạp file .mjs thật đã build — vừa tránh 2 lỗi trên, vừa đảm
-   * bảo test chạy đúng artifact mà production dùng. Yêu cầu: `dist/` phải
-   * được build trước khi test (`pretest` script trong package.json).
-   */
-  private resolveWorkerScript(): { path: string; execArgv: string[] } {
-    return { path: join(process.cwd(), 'dist', 'modules', 'chunking', 'parsing.worker.mjs'), execArgv: [] };
-  }
-
-  private async runWorker(input: ParsingWorkerInput, jobId: string): Promise<ParsingWorkerOutput> {
-    const { path, execArgv } = this.resolveWorkerScript();
-    return new Promise<ParsingWorkerOutput>((resolvePromise, reject) => {
-      const worker = new Worker(path, {
-        workerData: input,
-        execArgv,
-        resourceLimits: { maxOldGenerationSizeMb: WORKER_MAX_OLD_GEN_MB },
-      });
-      this.activeWorkers.set(jobId, worker);
-
-      const timeout = setTimeout(() => {
-        void worker.terminate();
-        reject(new Error(`Parsing vượt quá thời gian tối đa ${JOB_TIMEOUT_MS}ms`));
-      }, JOB_TIMEOUT_MS);
-
-      worker.once('message', (message: ParsingWorkerOutput | ParsingWorkerError) => {
-        clearTimeout(timeout);
-        if (message.ok) resolvePromise(message);
-        else reject(new Error(message.error));
-      });
-      worker.once('error', (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      });
-      worker.once('exit', (code) => {
-        clearTimeout(timeout);
-        this.activeWorkers.delete(jobId);
-        if (code !== 0 && !this.cancelledJobIds.has(jobId)) {
-          reject(new Error(`Worker thoát bất thường (mã ${code}) — có thể do vượt giới hạn bộ nhớ ${WORKER_MAX_OLD_GEN_MB}MB`));
-        }
-      });
-    });
-  }
-
   private async processJob(jobId: string): Promise<void> {
     const job = await this.jobRepo.findOne({ where: { id: jobId } });
     if (!job) return;
@@ -284,6 +231,8 @@ export class ChunkProcessingQueueService implements OnModuleDestroy {
     await this.jobRepo.save(job);
     await this.log(jobId, ParsingLogLevel.INFO, 'Bắt đầu xử lý');
     const startedAt = Date.now();
+    const abortController = new AbortController();
+    this.abortControllers.set(jobId, abortController);
 
     try {
       const version = await this.versionRepo.findOne({ where: { id: job.documentVersionId } });
@@ -293,9 +242,9 @@ export class ChunkProcessingQueueService implements OnModuleDestroy {
       const fileBuffer = await readFile(join(this.storage.uploadDir, version.storageKey));
       const tags = await this.tagRepo.find({ where: { documentId: job.documentId } });
 
-      const result = await this.runWorker(
+      const result = await this.pool.execute(
         { fileBase64: fileBuffer.toString('base64'), fileName: version.fileName, config: DEFAULT_CHUNKING_CONFIG },
-        jobId,
+        abortController.signal,
       );
 
       for (const warning of result.warnings) {
@@ -317,7 +266,11 @@ export class ChunkProcessingQueueService implements OnModuleDestroy {
             chunkIndex: index,
             content: c.content,
             pageNumber: c.pageNumber,
-            sectionTitle: c.sectionTitle,
+            // Phòng thủ tại tầng lưu DB (khớp varchar(500)) — dù heuristic đã
+            // cắt gọn heading text, vẫn cắt lần nữa ở đây cho MỌI nguồn
+            // heading (kể cả DOCX/HTML/MD cấu trúc thật) — không tin tưởng
+            // dữ liệu đầu vào tuyệt đối an toàn.
+            sectionTitle: c.sectionTitle ? c.sectionTitle.slice(0, 500) : null,
             headingPath: c.headingPath,
             charStart: c.charStart,
             charEnd: c.charEnd,
@@ -342,9 +295,21 @@ export class ChunkProcessingQueueService implements OnModuleDestroy {
         chunksProduced: result.chunks.length,
         durationMs: job.durationMs,
       });
+      // Hook Prompt 04: chunk COMPLETED -> tự động enqueue embedding cho version này
+      // (chỉ khi thật sự có chunk — job rebuild/reparse trên tài liệu rỗng không cần enqueue).
+      // PHẢI bắt lỗi ở đây — đây là lời gọi fire-and-forget (không await), lỗi
+      // không bắt sẽ thành unhandled rejection ở cấp process (đã gặp thật: FK
+      // lỗi khi document bị xóa ngay sau khi chunk xong, ví dụ test cleanup
+      // chạy trước khi hook kịp enqueue) — không được để ảnh hưởng tới kết quả
+      // COMPLETED của chunk job (2 pipeline độc lập, embedding lỗi không nên
+      // làm hỏng thành quả parsing đã xong).
+      if (result.chunks.length > 0) {
+        this.embeddingQueue.enqueue(job.documentId, job.documentVersionId, job.requestedBy).catch((error: Error) => {
+          this.logger.warn(`Khong the tu dong enqueue embedding cho version ${job.documentVersionId}: ${error.message}`);
+        });
+      }
     } catch (error) {
-      const wasCancelled = this.cancelledJobIds.has(jobId);
-      this.cancelledJobIds.delete(jobId);
+      const wasCancelled = abortController.signal.aborted;
       job.status = wasCancelled ? ChunkProcessingStatus.CANCELLED : ChunkProcessingStatus.FAILED;
       job.errorReason = wasCancelled ? 'Bị hủy thủ công' : (error as Error).message.slice(0, 2000);
       job.durationMs = Date.now() - startedAt;
@@ -353,14 +318,14 @@ export class ChunkProcessingQueueService implements OnModuleDestroy {
       await this.log(jobId, ParsingLogLevel.ERROR, job.errorReason ?? 'Lỗi không xác định');
       this.logger.error(`Job ${jobId} that bai: ${job.errorReason}`);
     } finally {
-      this.activeWorkers.delete(jobId);
+      this.abortControllers.delete(jobId);
     }
   }
 
-  /** Dọn dẹp worker đang chạy khi ứng dụng tắt (test teardown / graceful shutdown) — tránh treo tiến trình */
+  /** Dọn dẹp pool worker + job đang chạy khi ứng dụng tắt (test teardown / graceful shutdown) — tránh treo tiến trình */
   async onModuleDestroy(): Promise<void> {
     this.pending.length = 0;
-    await Promise.all([...this.activeWorkers.values()].map((w) => w.terminate()));
+    for (const controller of this.abortControllers.values()) controller.abort();
     // Chờ processJob() ghi xong trạng thái CANCELLED/FAILED vào DB trước khi
     // Nest tiếp tục đóng connection pool — nếu không, save() sau đó sẽ ném
     // "Connection terminated" (đã xác nhận thật khi test). Có timeout an
@@ -369,5 +334,6 @@ export class ChunkProcessingQueueService implements OnModuleDestroy {
     if (pending.length > 0) {
       await Promise.race([Promise.allSettled(pending), new Promise((r) => setTimeout(r, 5000))]);
     }
+    await this.pool.destroy();
   }
 }

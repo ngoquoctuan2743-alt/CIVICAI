@@ -152,6 +152,24 @@ export enum ParsingLogLevel {
   ERROR = 'ERROR',
 }
 
+/** Trạng thái 1 dòng embedding (Prompt 04) — không phải trạng thái job */
+export enum EmbeddingStatus {
+  PENDING = 'PENDING',
+  READY = 'READY',
+  FAILED = 'FAILED',
+}
+
+/** Trạng thái 1 job embedding hàng loạt (theo document version) — có Dead Letter Queue */
+export enum EmbeddingJobStatus {
+  QUEUED = 'QUEUED',
+  RUNNING = 'RUNNING',
+  COMPLETED = 'COMPLETED',
+  RETRYING = 'RETRYING',
+  FAILED = 'FAILED',
+  DEAD_LETTER = 'DEAD_LETTER',
+  CANCELLED = 'CANCELLED',
+}
+
 /** Nguồn dữ liệu huấn luyện/cải thiện AI */
 export enum TrainingDataSource {
   FEEDBACK = 'FEEDBACK',

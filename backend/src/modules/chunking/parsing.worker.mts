@@ -1,12 +1,21 @@
 /**
  * Worker thread thực thi Parse + Chunk cách ly khỏi main thread — cho phép
  * enforce giới hạn bộ nhớ THẬT (resourceLimits.maxOldGenerationSizeMb, set
- * ở nơi spawn worker trong ChunkProcessingQueueService) và không làm treo
- * event loop chính khi xử lý file lớn. KHÔNG dùng Nest DI ở đây (worker
- * thread độc lập) — các parser class không có dependency nào nên khởi tạo
- * trực tiếp bằng `new` vẫn đúng.
+ * ở nơi spawn worker trong WorkerPool) và không làm treo event loop chính
+ * khi xử lý file lớn. KHÔNG dùng Nest DI ở đây (worker thread độc lập) —
+ * các parser class không có dependency nào nên khởi tạo trực tiếp bằng
+ * `new` vẫn đúng.
+ *
+ * SỐNG LÂU DÀI (persistent) — nhận nhiều message tuần tự qua parentPort
+ * thay vì parse 1 lần rồi thoát. Lý do: đã xác nhận thật bằng thực nghiệm
+ * — `pdf-parse` (pdfjs-dist) load lại nhiều lần trong các worker MỚI tạo
+ * liên tiếp gây Access Violation cấp native dưới Jest (worker chạy 1 lần
+ * rồi bị hủy ngay, native binding chưa kịp dọn dẹp sạch trước khi process
+ * tiếp theo load lại) — dùng lại CÙNG 1 worker cho nhiều job (module chỉ
+ * load 1 lần, ở lần message đầu) đã test ổn định qua 12 lần liên tiếp,
+ * không crash.
  */
-import { parentPort, workerData } from 'node:worker_threads';
+import { parentPort } from 'node:worker_threads';
 import { extname } from 'node:path';
 // .mts là ES Module thật — resolver ESM bắt buộc extension tường minh,
 // khác với .ts thường (CommonJS/TS-classic cho phép bỏ extension). Viết
@@ -40,9 +49,20 @@ export interface ParsingWorkerError {
   error: string;
 }
 
+/** Message gửi VÀO worker — requestId để khớp đúng response (worker xử lý tuần tự, nhưng vẫn khớp tường minh cho chắc chắn) */
+export interface ParsingWorkerRequest {
+  requestId: string;
+  input: ParsingWorkerInput;
+}
+
+export type ParsingWorkerResponse = { requestId: string } & (ParsingWorkerOutput | ParsingWorkerError);
+
+// Khởi tạo parser 1 LẦN DUY NHẤT khi worker khởi động (không phải mỗi request) —
+// đúng tinh thần "persistent", tránh chi phí khởi tạo lại native binding mỗi job.
+const parsers: DocumentParser[] = [new PdfParser(), new DocxParser(), new TextParser(), new MarkdownParser(), new HtmlParser()];
+
 function resolveParser(fileName: string): DocumentParser {
   const ext = extname(fileName).toLowerCase();
-  const parsers: DocumentParser[] = [new PdfParser(), new DocxParser(), new TextParser(), new MarkdownParser(), new HtmlParser()];
   const parser = parsers.find((p) => p.extensions.includes(ext));
   if (!parser) throw new Error(`Không có parser cho định dạng "${ext}"`);
   return parser;
@@ -65,25 +85,27 @@ function dedupeChunks(chunks: RawChunk[]): { unique: RawChunk[]; duplicatesSkipp
   return { unique, duplicatesSkipped };
 }
 
-async function run(): Promise<void> {
-  const { fileBase64, fileName, config } = workerData as ParsingWorkerInput;
+async function handleOne(input: ParsingWorkerInput): Promise<ParsingWorkerOutput> {
   const warnings: string[] = [];
-  try {
-    const buffer = Buffer.from(fileBase64, 'base64');
-    const parser = resolveParser(fileName);
-    const normalized = await parser.parse(buffer, fileName);
-    if (!normalized.plainText.trim()) {
-      warnings.push('Tài liệu không trích xuất được nội dung văn bản nào (file rỗng hoặc chỉ chứa ảnh scan — cần OCR)');
-    }
-    const rawChunks = chunkNormalizedDocument(normalized, config);
-    const { unique, duplicatesSkipped } = dedupeChunks(rawChunks);
-
-    const output: ParsingWorkerOutput = { ok: true, chunks: unique, duplicatesSkipped, warnings };
-    parentPort?.postMessage(output);
-  } catch (error) {
-    const output: ParsingWorkerError = { ok: false, error: (error as Error).message };
-    parentPort?.postMessage(output);
+  const buffer = Buffer.from(input.fileBase64, 'base64');
+  const parser = resolveParser(input.fileName);
+  const normalized = await parser.parse(buffer, input.fileName);
+  if (!normalized.plainText.trim()) {
+    warnings.push('Tài liệu không trích xuất được nội dung văn bản nào (file rỗng hoặc chỉ chứa ảnh scan — cần OCR)');
   }
+  const rawChunks = chunkNormalizedDocument(normalized, input.config);
+  const { unique, duplicatesSkipped } = dedupeChunks(rawChunks);
+  return { ok: true, chunks: unique, duplicatesSkipped, warnings };
 }
 
-void run();
+parentPort?.on('message', (message: ParsingWorkerRequest) => {
+  void handleOne(message.input)
+    .then((output) => {
+      const response: ParsingWorkerResponse = { requestId: message.requestId, ...output };
+      parentPort?.postMessage(response);
+    })
+    .catch((error: Error) => {
+      const response: ParsingWorkerResponse = { requestId: message.requestId, ok: false, error: error.message };
+      parentPort?.postMessage(response);
+    });
+});

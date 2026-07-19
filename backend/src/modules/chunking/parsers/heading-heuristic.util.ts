@@ -15,6 +15,26 @@ const HEADING_PATTERNS: { regex: RegExp; level: number }[] = [
   { regex: /^\s*Khoản\s+\d+/iu, level: 3 },
 ];
 
+/** Giới hạn an toàn cho tiêu đề (khớp cột section_title varchar(500) của DocumentChunk) */
+const MAX_HEADING_TEXT_LENGTH = 300;
+
+/**
+ * Rút gọn dòng khớp pattern heading thành TIÊU ĐỀ thật, không lấy nguyên cả
+ * dòng — vì với TXT/PDF không có xuống dòng thật giữa tiêu đề và nội dung
+ * (vd "Điều 1. Tiêu đề. Nội dung dài...." nằm chung 1 dòng), lấy cả dòng sẽ
+ * biến "tiêu đề" thành cả đoạn văn (đã gặp lỗi thật: vượt varchar(500) khi
+ * lưu DB). Ưu tiên cắt tại dấu chấm câu đầu tiên sau phần số hiệu.
+ */
+function extractHeadingTitle(line: string): string {
+  if (line.length <= MAX_HEADING_TEXT_LENGTH) return line;
+  const boundary = line.indexOf('. ', 10); // bỏ qua ". " ngay sau số hiệu kiểu "Điều 1."
+  const secondBoundary = boundary >= 0 ? line.indexOf('. ', boundary + 2) : -1;
+  if (secondBoundary > 0 && secondBoundary <= MAX_HEADING_TEXT_LENGTH) {
+    return line.slice(0, secondBoundary + 1);
+  }
+  return `${line.slice(0, MAX_HEADING_TEXT_LENGTH - 1)}…`;
+}
+
 /** Dòng in hoa toàn bộ, ngắn (<= 100 ký tự), không kết thúc bằng dấu câu -> khả năng cao là tiêu đề */
 function looksLikeAllCapsHeading(line: string): boolean {
   const trimmed = line.trim();
@@ -38,7 +58,7 @@ export function detectHeadingsHeuristic(text: string, pageOf?: (charOffset: numb
       if (matched) {
         headings.push({
           level: matched.level,
-          text: trimmed,
+          text: extractHeadingTitle(trimmed),
           charStart: offset,
           pageNumber: pageOf ? pageOf(offset) : null,
         });

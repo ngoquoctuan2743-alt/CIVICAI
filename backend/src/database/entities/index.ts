@@ -7,6 +7,8 @@ import { CitizenProfileEntity } from './citizen-profile.entity';
 import { ConversationEntity } from './conversation.entity';
 import { DocumentChunkEntity } from './document-chunk.entity';
 import { DocumentEntity } from './document.entity';
+import { EmbeddingJobEntity } from './embedding-job.entity';
+import { EmbeddingEntity } from './embedding.entity';
 import { FeedbackEntity } from './feedback.entity';
 import { GovernmentAgencyEntity } from './government-agency.entity';
 import { KbChunkEntity } from './kb-chunk.entity';
@@ -39,6 +41,8 @@ export const ALL_ENTITIES = [
   ConversationEntity,
   DocumentChunkEntity,
   DocumentEntity,
+  EmbeddingEntity,
+  EmbeddingJobEntity,
   FeedbackEntity,
   GovernmentAgencyEntity,
   KbChunkEntity,
