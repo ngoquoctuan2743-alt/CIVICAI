@@ -4,6 +4,9 @@ import { AppLoggerService } from '../../../logger/logger.service';
 import { EmbeddingConfig } from '../../../config/configuration';
 import { EmbeddingProvider, EmbeddingVector } from './embedding-provider.interface';
 
+/** Timeout gọi HTTP tới Gemini Embedding API — không có giới hạn này, 1 request treo (mất mạng/hạ tầng) sẽ chặn CẢ job mãi mãi (đã gặp thật khi test) */
+const REQUEST_TIMEOUT_MS = 30_000;
+
 /**
  * GeminiEmbeddingProvider — cài đặt EmbeddingProvider trên Gemini Embedding
  * API (model `gemini-embedding-001`, hỗ trợ outputDimensionality tùy chỉnh
@@ -36,7 +39,7 @@ export class GeminiEmbeddingProvider implements EmbeddingProvider {
       const result = await this.client.models.embedContent({
         model: this.modelVersion,
         contents: texts,
-        config: { outputDimensionality: this.dimension },
+        config: { outputDimensionality: this.dimension, httpOptions: { timeout: REQUEST_TIMEOUT_MS } },
       });
       const embeddings = result.embeddings ?? [];
       if (embeddings.length !== texts.length) {
@@ -62,7 +65,7 @@ export class GeminiEmbeddingProvider implements EmbeddingProvider {
       await this.client.models.embedContent({
         model: this.modelVersion,
         contents: 'health check',
-        config: { outputDimensionality: this.dimension },
+        config: { outputDimensionality: this.dimension, httpOptions: { timeout: REQUEST_TIMEOUT_MS } },
       });
       return { reachable: true, latencyMs: Date.now() - startedAt, error: null };
     } catch (error) {
@@ -73,6 +76,9 @@ export class GeminiEmbeddingProvider implements EmbeddingProvider {
   /** Ánh xạ lỗi thô của SDK thành thông điệp rõ ràng — KHÔNG bao giờ lộ API key trong message */
   private mapError(error: Error): string {
     const raw = error.message ?? String(error);
+    if (/timeout|timed.?out|ETIMEDOUT|deadline.?exceeded/i.test(raw)) {
+      return `Gemini Embedding API không phản hồi trong ${REQUEST_TIMEOUT_MS}ms (timeout): ${raw.slice(0, 200)}`;
+    }
     if (raw.includes('429') || /quota|rate.?limit/i.test(raw)) {
       return `Gemini Embedding API vượt quota/rate limit: ${raw.slice(0, 200)}`;
     }

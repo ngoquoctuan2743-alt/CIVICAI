@@ -13,8 +13,15 @@ import { AppModule } from '../src/app.module';
  * Prompt 03 (chunk COMPLETED -> embedding enqueue), idempotency/resume,
  * force reindex, reindex chunk/version/document/all, activate/deactivate
  * version, và toàn bộ Admin API.
+ *
+ * CI (GitHub Actions) không có GEMINI_API_KEY (secret trả phí, không cấp
+ * cho pipeline) -> tự skip cả file khi thiếu key, cùng quy ước với
+ * LLM_PROVIDER=mock khi thiếu ANTHROPIC_API_KEY. Chạy thật khi có key trong
+ * .env local.
  */
-describe('Embedding Pipeline API (e2e)', () => {
+const describeIfGeminiKey = process.env.GEMINI_API_KEY ? describe : describe.skip;
+
+describeIfGeminiKey('Embedding Pipeline API (e2e)', () => {
   let app: INestApplication;
   let dataSource: DataSource;
 
