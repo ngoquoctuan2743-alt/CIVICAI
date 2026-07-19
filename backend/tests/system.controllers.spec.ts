@@ -32,7 +32,9 @@ function createMockConfig(values: Record<string, unknown>): ConfigService {
 describe('HealthController', () => {
   it('trả về trạng thái ok kèm environment, uptime và readiness (PHASE 7)', async () => {
     const mockDataSource = { query: jest.fn().mockResolvedValue([{ '?column?': 1 }]) } as unknown as DataSource;
-    const mockAiClient = { checkHealth: jest.fn().mockResolvedValue(true) } as unknown as AiClientService;
+    const mockAiClient = {
+      checkHealth: jest.fn().mockResolvedValue({ ok: true, llmProvider: 'gemini', embeddingModel: 'gemini-embedding-001' }),
+    } as unknown as AiClientService;
 
     const controller = new HealthController(
       createMockLogger(),
@@ -51,13 +53,18 @@ describe('HealthController', () => {
     // PHASE 7: readiness check cho Database + AI Service
     expect(result.ready).toBe(true);
     expect(result.checks).toEqual({ database: 'ok', aiService: 'ok' });
+    // Demo Mode: aiProvider/embeddingModel thật từ AI Service, không hardcode
+    expect(result.aiProvider).toBe('gemini');
+    expect(result.embeddingModel).toBe('gemini-embedding-001');
   });
 
   it('ready=false va bao dung dependency loi khi Database/AI Service khong ket noi duoc', async () => {
     const mockDataSource = {
       query: jest.fn().mockRejectedValue(new Error('connection refused')),
     } as unknown as DataSource;
-    const mockAiClient = { checkHealth: jest.fn().mockResolvedValue(false) } as unknown as AiClientService;
+    const mockAiClient = {
+      checkHealth: jest.fn().mockResolvedValue({ ok: false, llmProvider: null, embeddingModel: null }),
+    } as unknown as AiClientService;
 
     const controller = new HealthController(
       createMockLogger(),
@@ -71,6 +78,7 @@ describe('HealthController', () => {
     expect(result.status).toBe('ok'); // process van song (liveness khong doi)
     expect(result.ready).toBe(false);
     expect(result.checks).toEqual({ database: 'error', aiService: 'error' });
+    expect(result.aiProvider).toBeNull();
   });
 });
 

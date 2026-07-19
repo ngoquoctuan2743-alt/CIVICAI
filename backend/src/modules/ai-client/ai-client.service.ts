@@ -64,14 +64,22 @@ export class AiClientService {
   /**
    * GET /health trên AI Service — dùng cho readiness check của Backend (PHASE 7).
    * Không đi qua Circuit Breaker (đây là kiểm tra hạ tầng, không phải lỗi nghiệp vụ)
-   * và không throw — trả boolean để HealthController tự quyết định response.
+   * và không throw — trả về trạng thái để HealthController tự quyết định response.
+   * Mở rộng cho Demo Mode: trả kèm llmProvider/embeddingModel thật từ AI Service
+   * (không hardcode) khi service reachable, để dashboard demo hiển thị đúng thực tế.
    */
-  async checkHealth(): Promise<boolean> {
+  async checkHealth(): Promise<{ ok: boolean; llmProvider: string | null; embeddingModel: string | null }> {
     try {
-      await firstValueFrom(this.http.get(`${this.baseUrl}/health`, { timeout: 3000 }));
-      return true;
+      const res = await firstValueFrom(
+        this.http.get<{ llmProvider?: string; embeddingModel?: string }>(`${this.baseUrl}/health`, { timeout: 3000 }),
+      );
+      return {
+        ok: true,
+        llmProvider: res.data.llmProvider ?? null,
+        embeddingModel: res.data.embeddingModel ?? null,
+      };
     } catch {
-      return false;
+      return { ok: false, llmProvider: null, embeddingModel: null };
     }
   }
 

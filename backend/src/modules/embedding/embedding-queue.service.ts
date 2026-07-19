@@ -198,6 +198,18 @@ export class EmbeddingQueueService implements OnModuleDestroy {
   }
 
   /**
+   * Gọi trực tiếp healthCheck() thật của provider đang cấu hình — dùng cho
+   * Demo Mode dashboard hiển thị đúng trạng thái reachable của Gemini
+   * Embedding API, không hardcode. healthCheck() đã có sẵn trên interface
+   * EmbeddingProvider từ trước, chỉ chưa được expose qua HTTP.
+   */
+  async providerHealth(): Promise<{ reachable: boolean; latencyMs: number; error: string | null; modelName: string; modelVersion: string }> {
+    const provider = this.providerRegistry.get();
+    const result = await provider.healthCheck();
+    return { ...result, modelName: provider.modelName, modelVersion: provider.modelVersion };
+  }
+
+  /**
    * Metrics (Observability) — tính trực tiếp từ dữ liệu đã lưu, không thêm
    * bảng EmbeddingMetric riêng (cùng lý do như metrics() ở Prompt 03).
    * "Estimated embedding cost": Gemini SDK hiện KHÔNG trả tokenCount theo

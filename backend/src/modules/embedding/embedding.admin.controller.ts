@@ -34,6 +34,12 @@ export class EmbeddingAdminController {
     return this.queue.metrics();
   }
 
+  @Get('admin/embedding-jobs/provider-health')
+  @ApiOperation({ summary: '[ADMIN] Trạng thái reachable thật của Embedding Provider đang cấu hình (Gemini)' })
+  providerHealth() {
+    return this.queue.providerHealth();
+  }
+
   @Get('admin/embedding-jobs/:jobId')
   @ApiOperation({ summary: '[ADMIN] Trạng thái xử lý 1 job embedding' })
   findJob(@Param('jobId', ParseUUIDPipe) jobId: string) {

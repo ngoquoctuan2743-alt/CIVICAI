@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { DemoOverlay } from '../features/demo/components/DemoOverlay';
 import { AuthProvider } from '../stores/auth-context';
 import { ToastProvider } from '../stores/toast-context';
 
@@ -21,7 +22,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="vi">
       <body>
         <AuthProvider>
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            {children}
+            <DemoOverlay />
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>

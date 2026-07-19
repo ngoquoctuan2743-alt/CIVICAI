@@ -21,6 +21,9 @@ interface HealthStatus {
   timestamp: string;
   ready: boolean;
   checks: DependencyChecks;
+  /** Thật từ AI Service /health, null khi service không reachable — dùng cho Demo Mode dashboard, không hardcode */
+  aiProvider: string | null;
+  embeddingModel: string | null;
 }
 
 /**
@@ -49,11 +52,11 @@ export class HealthController extends BaseController {
   async getHealth(): Promise<HealthStatus> {
     this.logger.debug('Health check được gọi');
 
-    const [databaseOk, aiServiceOk] = await Promise.all([this.checkDatabase(), this.aiClient.checkHealth()]);
+    const [databaseOk, aiHealth] = await Promise.all([this.checkDatabase(), this.aiClient.checkHealth()]);
 
     const checks: DependencyChecks = {
       database: databaseOk ? 'ok' : 'error',
-      aiService: aiServiceOk ? 'ok' : 'error',
+      aiService: aiHealth.ok ? 'ok' : 'error',
     };
 
     return {
@@ -61,8 +64,10 @@ export class HealthController extends BaseController {
       environment: this.configService.get<string>('app.env', 'development'),
       uptimeSeconds: Math.round(process.uptime()),
       timestamp: nowIso(),
-      ready: databaseOk && aiServiceOk,
+      ready: databaseOk && aiHealth.ok,
       checks,
+      aiProvider: aiHealth.llmProvider,
+      embeddingModel: aiHealth.embeddingModel,
     };
   }
 
