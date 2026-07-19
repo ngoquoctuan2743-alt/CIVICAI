@@ -1,11 +1,13 @@
 'use client';
 
 import { useDemoMode } from '../hooks/use-demo-mode';
-import type { AdminUploadStepData, ChatSimStepData, DashboardStepData } from '../types';
+import type { AdminUploadStepData, AnalyticsStepData, ChatSimStepData, DashboardStepData } from '../types';
 import { AdminUploadScreen } from './screens/AdminUploadScreen';
+import { AnalyticsScreen } from './screens/AnalyticsScreen';
 import { ChatSimScreen } from './screens/ChatSimScreen';
 import { DashboardScreen } from './screens/DashboardScreen';
 import { SplashScreen } from './screens/SplashScreen';
+import { ThankYouScreen } from './screens/ThankYouScreen';
 
 /**
  * Khung Demo Mode — mounted 1 lần ở root layout. Chọn màn hình theo
@@ -59,6 +61,10 @@ function renderStep(stepId: string | null, stepData: unknown) {
       return stepData ? <ChatSimScreen data={stepData as ChatSimStepData} /> : null;
     case 'admin-upload':
       return stepData ? <AdminUploadScreen data={stepData as AdminUploadStepData} /> : null;
+    case 'analytics':
+      return stepData ? <AnalyticsScreen data={stepData as AnalyticsStepData} /> : null;
+    case 'thank-you':
+      return <ThankYouScreen />;
     default:
       return (
         <div className="text-center">

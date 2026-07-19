@@ -17,6 +17,15 @@ export interface ChunkProcessingJob {
   completedAt: string | null;
 }
 
+export interface ChunkMetrics {
+  avgParsingDurationMs: number | null;
+  totalChunks: number;
+  avgChunkSizeChars: number | null;
+  parserFailureCount: number;
+  totalRetryCount: number;
+  avgQueueLatencyMs: number | null;
+}
+
 export const chunkingAdminService = {
   findJobs: (params: { documentVersionId?: string; page?: number; limit?: number } = {}) => {
     const qs = new URLSearchParams();
@@ -27,4 +36,6 @@ export const chunkingAdminService = {
   },
 
   findJob: (jobId: string) => apiFetch<ChunkProcessingJob>(`/admin/chunk-processing-jobs/${jobId}`),
+
+  metrics: () => apiFetch<ChunkMetrics>('/admin/chunk-processing-jobs/metrics'),
 };

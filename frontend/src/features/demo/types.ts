@@ -1,6 +1,6 @@
 import type { AiSourceItem, DashboardSummary } from '../../types/api';
-import type { ChunkProcessingJob } from '../../services/chunking-admin.service';
-import type { EmbeddingJob, EmbeddingProviderHealth } from '../../services/embedding-admin.service';
+import type { ChunkMetrics, ChunkProcessingJob } from '../../services/chunking-admin.service';
+import type { EmbeddingJob, EmbeddingMetrics, EmbeddingProviderHealth } from '../../services/embedding-admin.service';
 import type { HealthStatus } from '../../services/system.service';
 
 /** Dữ liệu đẩy ra màn hình trong lúc chạy 1 bước hỏi-đáp (ask-question step) */
@@ -32,3 +32,16 @@ export type AdminUploadStepData =
   | { phase: 'embedding-failed'; embeddingJob: EmbeddingJob }
   | { phase: 'done'; chunkJob: ChunkProcessingJob; embeddingJob: EmbeddingJob }
   | { phase: 'timeout' };
+
+/**
+ * Step 15 Analytics — CHỈ những số liệu có thật từ API (không có "Total
+ * Queries"/"Average Response Time" như ví dụ đề bài vì backend không có
+ * metric đó — thêm vào sẽ là bịa số, vi phạm đúng nguyên tắc "never fake"
+ * mà chính đề bài yêu cầu).
+ */
+export interface AnalyticsStepData {
+  documentCount: number;
+  chunkMetrics: ChunkMetrics;
+  embeddingMetrics: EmbeddingMetrics;
+  embeddingHealth: EmbeddingProviderHealth | null;
+}

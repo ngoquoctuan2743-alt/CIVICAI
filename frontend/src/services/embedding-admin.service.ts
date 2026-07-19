@@ -26,8 +26,22 @@ export interface EmbeddingJob {
   completedAt: string | null;
 }
 
+export interface EmbeddingMetrics {
+  avgEmbeddingLatencyMs: number | null;
+  embeddingThroughputPerSec: number | null;
+  totalVectors: number;
+  failureRate: number;
+  totalRetryCount: number;
+  avgBatchSize: number | null;
+  queueDepth: number;
+  deadLetterCount: number;
+  estimatedCostUsd: number | null;
+}
+
 export const embeddingAdminService = {
   getProviderHealth: () => apiFetch<EmbeddingProviderHealth>('/admin/embedding-jobs/provider-health'),
+
+  metrics: () => apiFetch<EmbeddingMetrics>('/admin/embedding-jobs/metrics'),
 
   findJobs: (params: { documentId?: string; page?: number; limit?: number } = {}) => {
     const qs = new URLSearchParams();
