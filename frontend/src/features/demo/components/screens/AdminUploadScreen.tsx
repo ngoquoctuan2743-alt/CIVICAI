@@ -57,9 +57,14 @@ export function AdminUploadScreen({ data }: { data: AdminUploadStepData }) {
         <p className="text-sm text-amber-400">Vẫn đang xử lý (chưa xong trong thời gian chờ demo) — trạng thái thật, không giả vờ đã hoàn tất.</p>
       )}
       {data.phase === 'done' && (
-        <p className="text-sm text-emerald-400">
-          Hoàn tất thật: {data.chunkJob.chunksProduced ?? 0} chunk, {data.embeddingJob.embeddedCount}/{data.embeddingJob.totalChunks} vector đã tạo.
-        </p>
+        <div className="text-center">
+          <p className="rounded-full border border-emerald-800 bg-emerald-950/50 px-4 py-1 text-sm font-medium text-emerald-300">
+            Cơ sở tri thức đã cập nhật
+          </p>
+          <p className="mt-2 text-sm text-emerald-400">
+            {data.chunkJob.chunksProduced ?? 0} chunk, {data.embeddingJob.embeddedCount}/{data.embeddingJob.totalChunks} vector đã tạo thật.
+          </p>
+        </div>
       )}
     </div>
   );

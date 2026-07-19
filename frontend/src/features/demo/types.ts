@@ -1,4 +1,4 @@
-import type { AiSourceItem, DashboardSummary } from '../../types/api';
+import type { AdministrativeProcedure, AiSourceItem, DashboardSummary, LegalDocument } from '../../types/api';
 import type { ChunkMetrics, ChunkProcessingJob } from '../../services/chunking-admin.service';
 import type { EmbeddingJob, EmbeddingMetrics, EmbeddingProviderHealth } from '../../services/embedding-admin.service';
 import type { HealthStatus } from '../../services/system.service';
@@ -8,7 +8,24 @@ export type ChatSimStepData =
   | { phase: 'typing'; question: string; revealedWordCount: number }
   | { phase: 'workflow'; question: string; activeIndex: number }
   | { phase: 'answer'; question: string; answer: string; revealedWordCount: number }
-  | { phase: 'citations'; question: string; answer: string; sources: AiSourceItem[] };
+  | { phase: 'citations'; question: string; answer: string; sources: AiSourceItem[] }
+  | GuidancePhaseData;
+
+/**
+ * Extension 01 — sau khi trả lời, hướng dẫn thủ tục THẬT (checklist giấy tờ,
+ * điều kiện, phí, thời gian, cơ quan, các bước xử lý, hành động tiếp theo).
+ * `procedure` null khi câu trả lời AI không gắn với thủ tục nào (relatedProcedures
+ * rỗng) — màn hình sẽ bỏ qua phần thủ tục thay vì bịa dữ liệu.
+ */
+export interface GuidancePhaseData {
+  phase: 'guidance';
+  question: string;
+  answer: string;
+  sources: AiSourceItem[];
+  procedure: AdministrativeProcedure | null;
+  legalDetails: Record<string, LegalDocument>;
+  nextActions: string[];
+}
 
 /** Dữ liệu màn hình Dashboard (dùng lại cho step 4 lẫn step 15 Analytics) — toàn bộ số liệu thật */
 export interface DashboardStepData {

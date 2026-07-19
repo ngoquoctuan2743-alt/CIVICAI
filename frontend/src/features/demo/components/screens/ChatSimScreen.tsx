@@ -2,10 +2,13 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { ChatSimStepData } from '../../types';
 import { TypewriterText } from '../ui/TypewriterText';
+import { ProcedureGuidanceScreen } from './ProcedureGuidanceScreen';
 import { WorkflowDiagram } from './WorkflowDiagram';
 
 /** Màn hình mô phỏng hỏi-đáp công dân — thuần render theo `stepData`, không tự tính thời gian */
 export function ChatSimScreen({ data }: { data: ChatSimStepData }) {
+  if (data.phase === 'guidance') return <ProcedureGuidanceScreen data={data} />;
+
   return (
     <div className="flex w-full max-w-2xl flex-col items-center gap-6 px-6">
       <div className="w-full rounded-2xl border border-slate-800 bg-slate-900 p-5 text-left">
