@@ -10,6 +10,7 @@ const ADMIN_TABS = [
   { href: '/admin/procedures', label: 'Thủ tục hành chính' },
   { href: '/admin/legal', label: 'Văn bản pháp luật' },
   { href: '/admin/agencies', label: 'Cơ quan nhà nước' },
+  { href: '/admin/documents', label: 'Tài liệu tri thức' },
 ] as const;
 
 /** Layout Dashboard Admin — chỉ ADMIN truy cập được (AdminGuard) */

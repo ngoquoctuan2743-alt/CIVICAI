@@ -1,7 +1,8 @@
 'use client';
 
 import { useDemoMode } from '../hooks/use-demo-mode';
-import type { ChatSimStepData, DashboardStepData } from '../types';
+import type { AdminUploadStepData, ChatSimStepData, DashboardStepData } from '../types';
+import { AdminUploadScreen } from './screens/AdminUploadScreen';
 import { ChatSimScreen } from './screens/ChatSimScreen';
 import { DashboardScreen } from './screens/DashboardScreen';
 import { SplashScreen } from './screens/SplashScreen';
@@ -56,6 +57,8 @@ function renderStep(stepId: string | null, stepData: unknown) {
     case 'ask-question-1':
     case 'ask-question-2':
       return stepData ? <ChatSimScreen data={stepData as ChatSimStepData} /> : null;
+    case 'admin-upload':
+      return stepData ? <AdminUploadScreen data={stepData as AdminUploadStepData} /> : null;
     default:
       return (
         <div className="text-center">
